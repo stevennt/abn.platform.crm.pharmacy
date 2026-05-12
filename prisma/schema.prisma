@@ -1,0 +1,269 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  name      String
+  email     String   @unique
+  password  String
+  phone     String?
+  role      String   @default("sales") // admin, warehouse, sales, pharmacy-rep, accountant, distribution, customer-care
+  department String?
+  position  String?
+  status    String   @default("active")
+  territory String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  salesOrders   SalesOrder[]
+  purchaseOrders PurchaseOrder[]
+  customers     Customer[]
+  kpis          Kpi[]
+}
+
+model Customer {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique
+  name        String
+  type        String   // pharmacy, hospital, clinic, distributor, wholesaler, retailer
+  taxCode     String?
+  phone       String?
+  email       String?
+  address     String?
+  region      String?  // north, central, south
+  creditLimit Float    @default(0)
+  status      String   @default("active") // active, potential, inactive, blacklist
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  salesPersonId Int?
+  salesPerson   User?   @relation(fields: [salesPersonId], references: [id])
+
+  salesOrders SalesOrder[]
+}
+
+model Product {
+  id               Int      @id @default(autoincrement())
+  code             String   @unique
+  name             String
+  activeIngredient String?
+  category         String   // prescription, otc, supplement, medical-device, consumable
+  manufacturer     String?
+  unit             String   // Viên, Lọ, Hộp, Chai, Túi
+  purchasePrice    Float    @default(0)
+  salePrice        Float    @default(0)
+  minStock         Int      @default(0)
+  status           String   @default("active") // active, discontinued, pending
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  stockBatches     StockBatch[]
+  stockMovements   StockMovement[]
+  orderItems       OrderItem[]
+  purchaseOrderItems PurchaseOrderItem[]
+  priceLists       PriceList[]
+}
+
+model StockBatch {
+  id          Int      @id @default(autoincrement())
+  productId   Int
+  batchNumber String
+  expiryDate  DateTime
+  warehouse   String   @default("main") // main, cold, quarantine, return
+  quantity    Int      @default(0)
+  unit        String
+  purchasePrice Float  @default(0)
+  salePrice   Float    @default(0)
+  status      String   @default("in-stock") // in-stock, low-stock, expiring, expired, out-of-stock
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model StockMovement {
+  id          Int      @id @default(autoincrement())
+  date        DateTime @default(now())
+  type        String   // in, out, transfer, adjustment
+  productId   Int
+  batchNumber String?
+  quantity    Int
+  fromWarehouse String?
+  toWarehouse   String?
+  referenceType String? // sales-order, purchase-order, adjustment
+  referenceId   Int?
+  note        String?
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model SalesOrder {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique
+  customerId  Int
+  salesPersonId Int?
+  orderDate   DateTime @default(now())
+  deliveryDate DateTime?
+  totalAmount Float    @default(0)
+  status      String   @default("pending") // pending, confirmed, processing, shipped, completed, cancelled
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customer    Customer     @relation(fields: [customerId], references: [id])
+  salesPerson User?        @relation(fields: [salesPersonId], references: [id])
+  items       OrderItem[]
+}
+
+model OrderItem {
+  id        Int    @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  quantity  Int
+  unitPrice Float
+  totalPrice Float
+
+  order   SalesOrder @relation(fields: [orderId], references: [id])
+  product Product     @relation(fields: [productId], references: [id])
+}
+
+model PurchaseOrder {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique
+  supplierName String
+  supplierId  String?
+  orderDate   DateTime @default(now())
+  deliveryDate DateTime?
+  totalAmount Float    @default(0)
+  priority    String   @default("normal") // urgent, high, normal, low
+  status      String   @default("draft") // draft, pending, approved, ordered, received, completed
+  createdById Int?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User?                  @relation(fields: [createdById], references: [id])
+  items     PurchaseOrderItem[]
+}
+
+model PurchaseOrderItem {
+  id           Int    @id @default(autoincrement())
+  purchaseOrderId Int
+  productId    Int
+  quantity     Int
+  unitPrice    Float
+  totalPrice   Float
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  product       Product       @relation(fields: [productId], references: [id])
+}
+
+model Distributor {
+  id           Int      @id @default(autoincrement())
+  code         String   @unique
+  name         String
+  type         String   // exclusive, non-exclusive
+  region       String?  // north, central, south
+  revenue      Float    @default(0)
+  commission   Float    @default(0)
+  status       String   @default("active")
+  contractDate DateTime?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Territory {
+  id          Int      @id @default(autoincrement())
+  name        String
+  managerId   Int?
+  customerCount Int    @default(0)
+  revenue     Float    @default(0)
+  potential   String   @default("medium")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Kpi {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  period        String   // monthly, quarterly, yearly
+  revenueTarget Float    @default(0)
+  revenueActual Float    @default(0)
+  customerTarget Int     @default(0)
+  customerActual Int     @default(0)
+  orderTarget   Int      @default(0)
+  orderActual   Int      @default(0)
+  totalScore    Float    @default(0)
+  periodStart   DateTime
+  periodEnd     DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Promotion {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique
+  name        String
+  type        String   // discount, combo, campaign
+  value       Float
+  startDate   DateTime
+  endDate     DateTime
+  status      String   @default("active")
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model PriceList {
+  id        Int      @id @default(autoincrement())
+  name      String
+  type      String   // wholesale, retail, special
+  productId Int
+  price     Float
+  startDate DateTime?
+  endDate   DateTime?
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model ComplianceRecord {
+  id          Int      @id @default(autoincrement())
+  type        String   // license, audit, regulatory-report
+  title       String
+  description String?
+  status      String   @default("active")
+  expiryDate  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model TaxSetting {
+  id        Int      @id @default(autoincrement())
+  name      String
+  rate      Float
+  type      String   // vat, special, import
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Setting {
+  id    Int    @id @default(autoincrement())
+  key   String @unique
+  value String
+}
