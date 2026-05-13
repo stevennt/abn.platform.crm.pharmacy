@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Can } from '@/components/Can'
 import { PageGuard } from '@/components/PageGuard'
+import { useLookups } from '@/hooks/useLookups'
 
 interface Product {
   id: number
@@ -30,34 +31,12 @@ interface StockBatch {
   product?: Product
 }
 
-const statusLabels: Record<string, string> = {
-  'in-stock': 'Còn hàng',
-  'low-stock': 'Sắp hết',
-  expiring: 'Sắp hết hạn',
-  expired: 'Hết hạn',
-  'out-of-stock': 'Hết hàng',
-}
-
-const statusColors: Record<string, string> = {
-  'in-stock': 'bg-green-100 text-green-800',
-  'low-stock': 'bg-yellow-100 text-yellow-800',
-  expiring: 'bg-orange-100 text-orange-800',
-  expired: 'bg-red-100 text-red-800',
-  'out-of-stock': 'bg-zinc-100 text-zinc-600',
-}
-
-const warehouseOptions = [
-  { value: 'main', label: 'Kho chính' },
-  { value: 'cold', label: 'Kho lạnh' },
-  { value: 'quarantine', label: 'Kho cách ly' },
-  { value: 'return', label: 'Kho hàng trả' },
-]
-
 function formatVND(amount: number) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
 }
 
 export default function InventoryClient() {
+  const { getLabel, getColor, getByCategory, loading } = useLookups()
   const [data, setData] = useState<StockBatch[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [search, setSearch] = useState('')
@@ -430,14 +409,14 @@ export default function InventoryClient() {
             <label className="text-xs text-zinc-500 mb-1 block">Kho</label>
             <select className="px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={warehouseFilter} onChange={e => { setWarehouseFilter(e.target.value); setPage(1) }}>
               <option value="">Tất cả</option>
-              {warehouseOptions.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
+              {getByCategory('warehouse').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
             </select>
           </div>
           <div>
             <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
             <select className="px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }}>
               <option value="">Tất cả</option>
-              {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {getByCategory('inventory_status').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
             </select>
           </div>
           <Can permission="inventory:write">
@@ -479,14 +458,14 @@ export default function InventoryClient() {
                 <td className="px-4 py-3 text-zinc-900 font-medium">{item.productName}</td>
                 <td className="px-4 py-3 text-zinc-600 font-mono text-xs">{item.batchNumber}</td>
                 <td className="px-4 py-3 text-zinc-600 text-xs">{new Date(item.expiryDate).toLocaleDateString('vi-VN')}</td>
-                <td className="px-4 py-3 text-zinc-600">{warehouseOptions.find(w => w.value === item.warehouse)?.label || item.warehouse}</td>
+                <td className="px-4 py-3 text-zinc-600">{loading ? '...' : getLabel('warehouse', item.warehouse)}</td>
                 <td className="px-4 py-3 text-zinc-900 text-right font-medium">{item.quantity}</td>
                 <td className="px-4 py-3 text-zinc-600">{item.unit}</td>
                 <td className="px-4 py-3 text-zinc-900 text-right">{formatVND(item.purchasePrice)}</td>
                 <td className="px-4 py-3 text-zinc-900 text-right">{formatVND(item.salePrice)}</td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs px-1.5 py-0.5 ${statusColors[item.status] || 'bg-zinc-100 text-zinc-800'}`}>
-                    {statusLabels[item.status] || item.status}
+                  <span className={`text-xs px-1.5 py-0.5 ${getColor('inventory_status', item.status) || 'bg-zinc-100 text-zinc-800'}`}>
+                    {loading ? '...' : getLabel('inventory_status', item.status)}
                   </span>
                 </td>
                 <td className="px-4 py-3">
@@ -559,7 +538,7 @@ export default function InventoryClient() {
                   <div>
                     <label className="text-xs text-zinc-500 mb-1 block">Kho</label>
                     <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={inWarehouse} onChange={e => setInWarehouse(e.target.value)}>
-                      {warehouseOptions.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
+                      {getByCategory('warehouse').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                     </select>
                   </div>
                   <div>
@@ -623,7 +602,7 @@ export default function InventoryClient() {
                   <div>
                     <label className="text-xs text-zinc-500 mb-1 block">Kho</label>
                     <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={outWarehouse} onChange={e => setOutWarehouse(e.target.value)}>
-                      {warehouseOptions.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
+                      {getByCategory('warehouse').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                     </select>
                   </div>
                 </div>
@@ -677,13 +656,13 @@ export default function InventoryClient() {
                   <div>
                     <label className="text-xs text-zinc-500 mb-1 block">Từ kho</label>
                     <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={transferFromWarehouse} onChange={e => setTransferFromWarehouse(e.target.value)}>
-                      {warehouseOptions.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
+                      {getByCategory('warehouse').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="text-xs text-zinc-500 mb-1 block">Đến kho</label>
                     <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={transferToWarehouse} onChange={e => setTransferToWarehouse(e.target.value)}>
-                      {warehouseOptions.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
+                      {getByCategory('warehouse').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                     </select>
                   </div>
                 </div>
@@ -737,7 +716,7 @@ export default function InventoryClient() {
                   <div>
                     <label className="text-xs text-zinc-500 mb-1 block">Kho</label>
                     <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={adjWarehouse} onChange={e => setAdjWarehouse(e.target.value)}>
-                      {warehouseOptions.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
+                      {getByCategory('warehouse').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                     </select>
                   </div>
                 </div>
@@ -782,7 +761,7 @@ export default function InventoryClient() {
                   <div>
                     <label className="text-xs text-zinc-500 mb-1 block">Kho</label>
                     <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={editWarehouse} onChange={e => setEditWarehouse(e.target.value)}>
-                      {warehouseOptions.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
+                      {getByCategory('warehouse').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                     </select>
                   </div>
                   <div>

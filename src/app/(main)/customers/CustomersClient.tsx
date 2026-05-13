@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Can } from '@/components/Can'
+import { useLookups } from '@/hooks/useLookups'
 
 interface Customer {
   id: number
@@ -17,27 +18,12 @@ interface Customer {
   createdAt: string
 }
 
-const typeLabels: Record<string, string> = {
-  pharmacy: 'Nhà thuốc',
-  hospital: 'Bệnh viện',
-  clinic: 'Phòng khám',
-  distributor: 'Nhà phân phối',
-  wholesaler: 'Đại lý sỉ',
-  retailer: 'Bán lẻ',
-}
-
-const regionLabels: Record<string, string> = {
-  north: 'Miền Bắc',
-  central: 'Miền Trung',
-  south: 'Miền Nam',
-  highlands: 'Tây Nguyên',
-}
-
 function formatVND(amount: number) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
 }
 
 export default function CustomersClient() {
+  const { getLabel, getByCategory, getColor, loading } = useLookups()
   const [data, setData] = useState<Customer[]>([])
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
@@ -176,24 +162,21 @@ export default function CustomersClient() {
             <label className="text-xs text-zinc-500 mb-1 block">Loại KH</label>
             <select className="px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }}>
               <option value="">Tất cả</option>
-              {Object.entries(typeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {getByCategory('customer_type').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
             </select>
           </div>
           <div>
             <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
             <select className="px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }}>
               <option value="">Tất cả</option>
-              <option value="active">Đang hoạt động</option>
-              <option value="inactive">Ngừng hoạt động</option>
-              <option value="potential">Tiềm năng</option>
-              <option value="blocked">Bị khóa</option>
+              {getByCategory('customer_status').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
             </select>
           </div>
           <div>
             <label className="text-xs text-zinc-500 mb-1 block">Khu vực</label>
             <select className="px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={regionFilter} onChange={e => { setRegionFilter(e.target.value); setPage(1) }}>
               <option value="">Tất cả</option>
-              {Object.entries(regionLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {getByCategory('customer_region').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
             </select>
           </div>
           <Can permission="customers:write">
@@ -224,16 +207,16 @@ export default function CustomersClient() {
               <tr key={item.id} className="border-b border-zinc-200 hover:bg-zinc-50">
                 <td className="px-4 py-3 text-zinc-900">{item.code}</td>
                 <td className="px-4 py-3 text-zinc-900 font-medium">{item.name}</td>
-                <td className="px-4 py-3 text-zinc-600">{typeLabels[item.type] || item.type}</td>
+                <td className="px-4 py-3 text-zinc-600">{loading ? '...' : getLabel('customer_type', item.type)}</td>
                 <td className="px-4 py-3 text-zinc-600">{item.taxCode}</td>
                 <td className="px-4 py-3 text-zinc-600">{item.phone}</td>
                 <td className="px-4 py-3 text-zinc-600">{item.email}</td>
-                <td className="px-4 py-3 text-zinc-600">{regionLabels[item.region] || item.region}</td>
+                <td className="px-4 py-3 text-zinc-600">{loading ? '...' : getLabel('customer_region', item.region)}</td>
                 <td className="px-4 py-3 text-zinc-900 text-right">{formatVND(item.creditLimit)}</td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs px-1.5 py-0.5 ${item.status === 'active' ? 'bg-green-100 text-green-800' : item.status === 'potential' ? 'bg-blue-100 text-blue-800' : item.status === 'inactive' ? 'bg-zinc-100 text-zinc-600' : 'bg-red-100 text-red-800'}`}>
-                    {item.status === 'active' ? 'Đang hoạt động' : item.status === 'inactive' ? 'Ngừng HĐ' : item.status === 'potential' ? 'Tiềm năng' : 'Bị khóa'}
-                  </span>
+                    <span className={`text-xs px-1.5 py-0.5 ${getColor('customer_status', item.status) || 'bg-zinc-100 text-zinc-800'}`}>
+                      {loading ? '...' : getLabel('customer_status', item.status)}
+                    </span>
                 </td>
                 <td className="px-4 py-3 text-zinc-500 text-xs">{new Date(item.createdAt).toLocaleDateString('vi-VN')}</td>
                 <td className="px-4 py-3">
@@ -291,12 +274,7 @@ export default function CustomersClient() {
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Loại KH</label>
                   <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formType} onChange={e => setFormType(e.target.value)}>
-                    <option value="pharmacy">Nhà thuốc</option>
-                    <option value="hospital">Bệnh viện</option>
-                    <option value="clinic">Phòng khám</option>
-                    <option value="distributor">Nhà phân phối</option>
-                    <option value="wholesaler">Đại lý sỉ</option>
-                    <option value="retailer">Bán lẻ</option>
+                    {getByCategory('customer_type').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                   </select>
                 </div>
                 <div>
@@ -318,10 +296,7 @@ export default function CustomersClient() {
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Khu vực</label>
                   <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formRegion} onChange={e => setFormRegion(e.target.value)}>
-                    <option value="north">Miền Bắc</option>
-                    <option value="central">Miền Trung</option>
-                    <option value="south">Miền Nam</option>
-                    <option value="highlands">Tây Nguyên</option>
+                    {getByCategory('customer_region').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                   </select>
                 </div>
                 <div>
@@ -332,9 +307,7 @@ export default function CustomersClient() {
               <div>
                 <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
                 <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formStatus} onChange={e => setFormStatus(e.target.value)}>
-                  <option value="active">Đang hoạt động</option>
-                  <option value="inactive">Ngừng hoạt động</option>
-                  <option value="potential">Tiềm năng</option>
+                  {getByCategory('customer_status').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                 </select>
               </div>
             </div>

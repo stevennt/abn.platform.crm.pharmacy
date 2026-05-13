@@ -267,3 +267,25 @@ model Setting {
   key   String @unique
   value String
 }
+
+model Lookup {
+  id        Int      @id @default(autoincrement())
+  category  String
+  value     String
+  label     String
+  color     String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([category, value])
+}
+
+model RolePermission {
+  id         Int      @id @default(autoincrement())
+  role       String
+  permission String
+
+  @@unique([role, permission])
+}

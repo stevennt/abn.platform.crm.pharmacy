@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Can } from '@/components/Can'
 import { PageGuard } from '@/components/PageGuard'
+import { useLookups } from '@/hooks/useLookups'
 
 interface TaxSetting {
   id: number
@@ -12,14 +13,8 @@ interface TaxSetting {
   status: string
 }
 
-const typeLabels: Record<string, string> = {
-  vat: 'VAT',
-  import: 'Thuế nhập khẩu',
-  special: 'Thuế tiêu thụ đặc biệt',
-  other: 'Thuế khác',
-}
-
 export default function TaxClient() {
+  const { getLabel, getColor, getByCategory } = useLookups()
   const [data, setData] = useState<TaxSetting[]>([])
   const [page, setPage] = useState(1)
   const [showModal, setShowModal] = useState(false)
@@ -147,10 +142,10 @@ export default function TaxClient() {
               <tr key={item.id} className="border-b border-zinc-200 hover:bg-zinc-50">
                 <td className="px-4 py-3 text-zinc-900 font-medium">{item.name}</td>
                 <td className="px-4 py-3 text-zinc-900 text-right">{item.rate}%</td>
-                <td className="px-4 py-3 text-zinc-600">{typeLabels[item.type] || item.type}</td>
+                <td className="px-4 py-3 text-zinc-600">{getLabel('tax_type', item.type)}</td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs px-1.5 py-0.5 ${item.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-zinc-100 text-zinc-600'}`}>
-                    {item.status === 'active' ? 'Đang áp dụng' : 'Ngừng áp dụng'}
+                  <span className={`text-xs px-1.5 py-0.5 ${getColor('tax_status', item.status) || 'bg-zinc-100 text-zinc-600'}`}>
+                    {getLabel('tax_status', item.status)}
                   </span>
                 </td>
                 <td className="px-4 py-3">
@@ -207,14 +202,13 @@ export default function TaxClient() {
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Loại thuế</label>
                   <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formType} onChange={e => setFormType(e.target.value)}>
-                    {Object.entries(typeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    {getByCategory('tax_type').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
                   <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formStatus} onChange={e => setFormStatus(e.target.value)}>
-                    <option value="active">Đang áp dụng</option>
-                    <option value="inactive">Ngừng áp dụng</option>
+                    {getByCategory('tax_status').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                   </select>
                 </div>
               </div>

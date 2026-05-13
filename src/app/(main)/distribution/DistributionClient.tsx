@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Can } from '@/components/Can'
 import { PageGuard } from '@/components/PageGuard'
+import { useLookups } from '@/hooks/useLookups'
 
 interface Distributor {
   id: number
@@ -15,20 +16,6 @@ interface Distributor {
   commissionRate: number
   status: string
   contractDate: string
-}
-
-const typeLabels: Record<string, string> = {
-  exclusive: 'Đại lý độc quyền',
-  general: 'Đại lý tổng hợp',
-  sub: 'Đại lý cấp 2',
-  retail: 'Cửa hàng bán lẻ',
-}
-
-const regionLabels: Record<string, string> = {
-  north: 'Miền Bắc',
-  central: 'Miền Trung',
-  south: 'Miền Nam',
-  highlands: 'Tây Nguyên',
 }
 
 const tabLabels = ['Danh sách đại lý', 'Phân vùng', 'Hiệu suất', 'Hoa hồng']
@@ -59,6 +46,7 @@ export default function DistributionClient() {
   const [page, setPage] = useState(1)
   const [stats, setStats] = useState({ total: 0, active: 0, monthlyRevenue: 0, targetAchieved: 0 })
   const limit = 10
+  const { getLabel, getByCategory, getColor } = useLookups()
 
   useEffect(() => {
     fetch('/api/distributors')
@@ -141,11 +129,11 @@ export default function DistributionClient() {
     setData(Array.isArray(apiRes) ? apiRes : apiRes.data || [])
   }
 
-  const regionData = ['north', 'central', 'south', 'highlands'].map(r => ({
-    region: r,
-    label: regionLabels[r],
-    count: data.filter(d => d.region === r).length,
-    revenue: data.filter(d => d.region === r).reduce((s, d) => s + d.revenue, 0),
+  const regionData = getByCategory('customer_region').map(r => ({
+    region: r.value,
+    label: r.label,
+    count: data.filter(d => d.region === r.value).length,
+    revenue: data.filter(d => d.region === r.value).reduce((s, d) => s + d.revenue, 0),
   }))
 
   return (
@@ -213,23 +201,21 @@ export default function DistributionClient() {
                 <label className="text-xs text-zinc-500 mb-1 block">Loại hình</label>
                 <select className="px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }}>
                   <option value="">Tất cả</option>
-                  {Object.entries(typeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  {getByCategory('distributor_type').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                 </select>
               </div>
               <div>
                 <label className="text-xs text-zinc-500 mb-1 block">Vùng</label>
                 <select className="px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={regionFilter} onChange={e => { setRegionFilter(e.target.value); setPage(1) }}>
                   <option value="">Tất cả</option>
-                  {Object.entries(regionLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  {getByCategory('customer_region').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                 </select>
               </div>
               <div>
                 <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
                 <select className="px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }}>
                   <option value="">Tất cả</option>
-                  <option value="active">Đang hoạt động</option>
-                  <option value="inactive">Ngừng HĐ</option>
-                  <option value="suspended">Tạm ngưng</option>
+                  {getByCategory('distributor_status').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                 </select>
               </div>
             </div>
@@ -254,13 +240,13 @@ export default function DistributionClient() {
                     <tr key={item.id} className="border-b border-zinc-200 hover:bg-zinc-50">
                       <td className="px-4 py-3 text-zinc-900">{item.code}</td>
                       <td className="px-4 py-3 text-zinc-900 font-medium">{item.name}</td>
-                      <td className="px-4 py-3 text-zinc-600">{typeLabels[item.type] || item.type}</td>
-                      <td className="px-4 py-3 text-zinc-600">{regionLabels[item.region] || item.region}</td>
+                      <td className="px-4 py-3 text-zinc-600">{getLabel('distributor_type', item.type)}</td>
+                      <td className="px-4 py-3 text-zinc-600">{getLabel('customer_region', item.region)}</td>
                       <td className="px-4 py-3 text-zinc-900 text-right">{formatVND(item.revenue)}</td>
                       <td className="px-4 py-3 text-zinc-900 text-right">{formatVND(item.commission)} ({item.commissionRate}%)</td>
                       <td className="px-4 py-3">
-                        <span className={`text-xs px-1.5 py-0.5 ${item.status === 'active' ? 'bg-green-100 text-green-800' : item.status === 'inactive' ? 'bg-zinc-100 text-zinc-600' : 'bg-yellow-100 text-yellow-800'}`}>
-                          {item.status === 'active' ? 'Đang hoạt động' : item.status === 'inactive' ? 'Ngừng HĐ' : 'Tạm ngưng'}
+                        <span className={`text-xs px-1.5 py-0.5 ${getColor('distributor_status', item.status) ?? 'bg-zinc-100 text-zinc-600'}`}>
+                          {getLabel('distributor_status', item.status)}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-zinc-500 text-xs">{new Date(item.contractDate).toLocaleDateString('vi-VN')}</td>
@@ -336,7 +322,7 @@ export default function DistributionClient() {
                     <tr key={d.id} className="border-b border-zinc-200 hover:bg-zinc-50">
                       <td className="px-4 py-3 text-zinc-500">{i + 1}</td>
                       <td className="px-4 py-3 text-zinc-900 font-medium">{d.name}</td>
-                      <td className="px-4 py-3 text-zinc-600">{regionLabels[d.region] || d.region}</td>
+                      <td className="px-4 py-3 text-zinc-600">{getLabel('customer_region', d.region)}</td>
                       <td className="px-4 py-3 text-zinc-900 text-right">{formatVND(d.revenue)}</td>
                       <td className="px-4 py-3 text-zinc-900 text-right">{formatVND(d.commission)}</td>
                       <td className="px-4 py-3 text-zinc-900 text-right">{d.commissionRate}%</td>
@@ -415,17 +401,17 @@ export default function DistributionClient() {
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Loại hình</label>
                   <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={editType} onChange={e => setEditType(e.target.value)}>
-                    {Object.entries(typeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-zinc-500 mb-1 block">Vùng</label>
-                  <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={editRegion} onChange={e => setEditRegion(e.target.value)}>
-                    {Object.entries(regionLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
-                </div>
+                  {getByCategory('distributor_type').map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-zinc-500 mb-1 block">Vùng</label>
+                <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={editRegion} onChange={e => setEditRegion(e.target.value)}>
+                  {getByCategory('customer_region').map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Doanh thu</label>
                   <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" type="number" value={editRevenue} onChange={e => setEditRevenue(e.target.value)} />
@@ -448,9 +434,7 @@ export default function DistributionClient() {
               <div>
                 <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
                 <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={editStatus} onChange={e => setEditStatus(e.target.value)}>
-                  <option value="active">Đang hoạt động</option>
-                  <option value="inactive">Ngừng HĐ</option>
-                  <option value="suspended">Tạm ngưng</option>
+                  {getByCategory('distributor_status').map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
               </div>
             </div>

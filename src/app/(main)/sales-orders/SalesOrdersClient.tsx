@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Can } from '@/components/Can'
 import { PageGuard } from '@/components/PageGuard'
+import { useLookups } from '@/hooks/useLookups'
 
 interface SalesOrderItem {
   id: number
@@ -52,33 +53,6 @@ interface NewOrderForm {
   items: LineItem[]
 }
 
-const statusLabels: Record<string, string> = {
-  pending: 'Chờ duyệt',
-  confirmed: 'Đã duyệt',
-  processing: 'Đang xử lý',
-  shipped: 'Đã giao',
-  completed: 'Hoàn thành',
-  cancelled: 'Đã hủy',
-}
-
-const statusColors: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  confirmed: 'bg-blue-100 text-blue-800',
-  processing: 'bg-indigo-100 text-indigo-800',
-  shipped: 'bg-purple-100 text-purple-800',
-  completed: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-800',
-}
-
-const navTabs = [
-  { key: '', label: 'Tất cả' },
-  { key: 'pending', label: 'Chờ duyệt' },
-  { key: 'confirmed', label: 'Đã duyệt' },
-  { key: 'processing', label: 'Đang xử lý' },
-  { key: 'shipped', label: 'Đã giao' },
-  { key: 'completed', label: 'Hoàn thành' },
-]
-
 function formatVND(amount: number) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
 }
@@ -114,6 +88,14 @@ export default function SalesOrdersClient() {
   const [editStatus, setEditStatus] = useState('')
   const [editNotes, setEditNotes] = useState('')
   const [updating, setUpdating] = useState(false)
+  const { getLabel, getColor, getByCategory, loading } = useLookups()
+
+  const navTabs = [
+    { key: '', label: 'Tất cả' },
+    ...getByCategory('order_status')
+      .filter(l => l.isActive)
+      .map(l => ({ key: l.value, label: l.label })),
+  ]
 
   const fetchOrders = () => {
     fetch('/api/sales-orders')
@@ -300,7 +282,7 @@ export default function SalesOrdersClient() {
             <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
             <select className="px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }}>
               <option value="">Tất cả</option>
-              {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {getByCategory('order_status').filter(l => l.isActive).map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
             </select>
           </div>
           <div>
@@ -338,8 +320,8 @@ export default function SalesOrdersClient() {
                 <td className="px-4 py-3 text-zinc-500 text-xs">{new Date(item.orderDate).toLocaleDateString('vi-VN')}</td>
                 <td className="px-4 py-3 text-zinc-900 text-right">{formatVND(item.totalAmount)}</td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs px-1.5 py-0.5 ${statusColors[item.status] || 'bg-zinc-100 text-zinc-800'}`}>
-                    {statusLabels[item.status] || item.status}
+                  <span className={`text-xs px-1.5 py-0.5 ${getColor('order_status', item.status) || 'bg-zinc-100 text-zinc-800'}`}>
+                    {loading ? '...' : getLabel('order_status', item.status)}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-zinc-600">{item.salesPerson?.name}</td>
@@ -517,7 +499,7 @@ export default function SalesOrdersClient() {
               <div>
                 <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
                 <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={editStatus} onChange={e => setEditStatus(e.target.value)}>
-                  {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  {getByCategory('order_status').filter(l => l.isActive).map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                 </select>
               </div>
               <div>

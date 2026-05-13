@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Can } from '@/components/Can'
 import { PageGuard } from '@/components/PageGuard'
+import { useLookups } from '@/hooks/useLookups'
 
 interface PurchaseOrder {
   id: number
@@ -29,36 +30,6 @@ interface LineItem {
   productName: string
   quantity: number
   unitPrice: number
-}
-
-const statusLabels: Record<string, string> = {
-  pending: 'Chờ duyệt',
-  approved: 'Đã duyệt',
-  processing: 'Đang xử lý',
-  delivered: 'Đã giao',
-  cancelled: 'Đã hủy',
-}
-
-const statusColors: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  approved: 'bg-blue-100 text-blue-800',
-  processing: 'bg-indigo-100 text-indigo-800',
-  delivered: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-800',
-}
-
-const priorityLabels: Record<string, string> = {
-  low: 'Thấp',
-  normal: 'Bình thường',
-  high: 'Cao',
-  urgent: 'Khẩn cấp',
-}
-
-const priorityColors: Record<string, string> = {
-  low: 'bg-zinc-100 text-zinc-600',
-  normal: 'bg-blue-100 text-blue-800',
-  high: 'bg-orange-100 text-orange-800',
-  urgent: 'bg-red-100 text-red-800',
 }
 
 function formatVND(amount: number) {
@@ -97,6 +68,8 @@ export default function PurchaseOrdersClient() {
     notes: '',
     items: [] as LineItem[],
   })
+
+  const { getLabel, getColor, getByCategory, loading } = useLookups()
 
   function fetchOrders() {
     fetch('/api/purchase-orders')
@@ -263,7 +236,7 @@ export default function PurchaseOrdersClient() {
             <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
             <select className="px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }}>
               <option value="">Tất cả</option>
-              {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {getByCategory('po_status').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
             </select>
           </div>
           <div>
@@ -277,7 +250,7 @@ export default function PurchaseOrdersClient() {
             <label className="text-xs text-zinc-500 mb-1 block">Mức độ ưu tiên</label>
             <select className="px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={priorityFilter} onChange={e => { setPriorityFilter(e.target.value); setPage(1) }}>
               <option value="">Tất cả</option>
-              {Object.entries(priorityLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {getByCategory('priority').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
             </select>
           </div>
           <div>
@@ -318,13 +291,13 @@ export default function PurchaseOrdersClient() {
                 <td className="px-4 py-3 text-zinc-500 text-xs">{item.deliveryDate ? new Date(item.deliveryDate).toLocaleDateString('vi-VN') : '-'}</td>
                 <td className="px-4 py-3 text-zinc-900 text-right">{formatVND(item.totalAmount)}</td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs px-1.5 py-0.5 ${priorityColors[item.priority] || 'bg-zinc-100 text-zinc-800'}`}>
-                    {priorityLabels[item.priority] || item.priority}
+                  <span className={`text-xs px-1.5 py-0.5 ${getColor('priority', item.priority) || 'bg-zinc-100 text-zinc-800'}`}>
+                    {loading ? '...' : getLabel('priority', item.priority)}
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs px-1.5 py-0.5 ${statusColors[item.status] || 'bg-zinc-100 text-zinc-800'}`}>
-                    {statusLabels[item.status] || item.status}
+                  <span className={`text-xs px-1.5 py-0.5 ${getColor('po_status', item.status) || 'bg-zinc-100 text-zinc-800'}`}>
+                    {loading ? '...' : getLabel('po_status', item.status)}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-zinc-600">{item.createdBy?.name}</td>
@@ -390,7 +363,7 @@ export default function PurchaseOrdersClient() {
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Mức độ ưu tiên</label>
                   <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}>
-                    {Object.entries(priorityLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    {getByCategory('priority').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                   </select>
                 </div>
                 <div />
@@ -466,13 +439,13 @@ export default function PurchaseOrdersClient() {
               <div>
                 <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
                 <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={editStatus} onChange={e => setEditStatus(e.target.value)}>
-                  {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  {getByCategory('po_status').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                 </select>
               </div>
               <div>
                 <label className="text-xs text-zinc-500 mb-1 block">Mức độ ưu tiên</label>
                 <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={editPriority} onChange={e => setEditPriority(e.target.value)}>
-                  {Object.entries(priorityLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  {getByCategory('priority').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                 </select>
               </div>
               <div>

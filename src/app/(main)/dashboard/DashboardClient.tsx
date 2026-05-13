@@ -1,5 +1,7 @@
 'use client'
 
+import { useLookups } from '@/hooks/useLookups'
+
 interface DashboardProps {
   totalCustomers: number
   totalProducts: number
@@ -10,29 +12,12 @@ interface DashboardProps {
   expiringCount: number
 }
 
-const statusLabels: Record<string, string> = {
-  pending: 'Chờ xử lý',
-  confirmed: 'Đã duyệt',
-  processing: 'Đang xử lý',
-  shipped: 'Đã giao',
-  completed: 'Hoàn thành',
-  cancelled: 'Đã hủy',
-}
-
-const statusColors: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  confirmed: 'bg-blue-100 text-blue-800',
-  processing: 'bg-indigo-100 text-indigo-800',
-  shipped: 'bg-purple-100 text-purple-800',
-  completed: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-800',
-}
-
 function formatVND(amount: number) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
 }
 
 export default function DashboardClient(props: DashboardProps) {
+  const { getLabel, getColor } = useLookups()
   return (
     <div className="animate-fade-in">
       <div className="mb-6">
@@ -73,8 +58,8 @@ export default function DashboardClient(props: DashboardProps) {
                 </div>
                 <div className="text-right">
                   <div className="text-sm font-medium text-zinc-900">{formatVND(order.totalAmount)}</div>
-                  <span className={`text-xs px-1.5 py-0.5 ${statusColors[order.status] || 'bg-zinc-100 text-zinc-800'}`}>
-                    {statusLabels[order.status] || order.status}
+                  <span className={`text-xs px-1.5 py-0.5 ${getColor('order_status', order.status) || 'bg-zinc-100 text-zinc-800'}`}>
+                    {getLabel('order_status', order.status)}
                   </span>
                 </div>
               </div>

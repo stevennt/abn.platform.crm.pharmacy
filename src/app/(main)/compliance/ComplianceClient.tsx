@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Can } from '@/components/Can'
 import { PageGuard } from '@/components/PageGuard'
+import { useLookups } from '@/hooks/useLookups'
 
 interface ComplianceRecord {
   id: number
@@ -14,32 +15,8 @@ interface ComplianceRecord {
   expiryDate: string
 }
 
-const typeLabels: Record<string, string> = {
-  license: 'Giấy phép kinh doanh',
-  certificate: 'Chứng chỉ hành nghề',
-  inspection: 'Kiểm tra chất lượng',
-  gpp: 'Chứng nhận GPP',
-  gdp: 'Chứng nhận GDP',
-  other: 'Khác',
-}
-
-const statusLabels: Record<string, string> = {
-  valid: 'Còn hiệu lực',
-  expiring: 'Sắp hết hạn',
-  expired: 'Hết hạn',
-  pending: 'Chờ cấp',
-  revoked: 'Đã thu hồi',
-}
-
-const statusColors: Record<string, string> = {
-  valid: 'bg-green-100 text-green-800',
-  expiring: 'bg-yellow-100 text-yellow-800',
-  expired: 'bg-red-100 text-red-800',
-  pending: 'bg-blue-100 text-blue-800',
-  revoked: 'bg-zinc-100 text-zinc-600',
-}
-
 export default function ComplianceClient() {
+  const { getLabel, getColor, getByCategory } = useLookups()
   const [data, setData] = useState<ComplianceRecord[]>([])
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
@@ -173,14 +150,14 @@ export default function ComplianceClient() {
             <label className="text-xs text-zinc-500 mb-1 block">Loại</label>
             <select className="px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }}>
               <option value="">Tất cả</option>
-              {Object.entries(typeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {getByCategory('compliance_type').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
             </select>
           </div>
           <div>
             <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
             <select className="px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }}>
               <option value="">Tất cả</option>
-              {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {getByCategory('compliance_status').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
             </select>
           </div>
           <Can permission="compliance:write">
@@ -205,14 +182,14 @@ export default function ComplianceClient() {
           <tbody>
             {paged.map(item => (
               <tr key={item.id} className="border-b border-zinc-200 hover:bg-zinc-50">
-                <td className="px-4 py-3 text-zinc-600">{typeLabels[item.type] || item.type}</td>
+                <td className="px-4 py-3 text-zinc-600">{getLabel('compliance_type', item.type)}</td>
                 <td className="px-4 py-3 text-zinc-900 font-medium">{item.title}</td>
                 <td className="px-4 py-3 text-zinc-500 text-xs max-w-[200px] truncate">{item.description}</td>
                 <td className="px-4 py-3 text-zinc-500 text-xs">{new Date(item.issuedDate).toLocaleDateString('vi-VN')}</td>
                 <td className="px-4 py-3 text-zinc-500 text-xs">{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString('vi-VN') : '-'}</td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs px-1.5 py-0.5 ${statusColors[item.status] || 'bg-zinc-100 text-zinc-800'}`}>
-                    {statusLabels[item.status] || item.status}
+                    <span className={`text-xs px-1.5 py-0.5 ${getColor('compliance_status', item.status) || 'bg-zinc-100 text-zinc-800'}`}>
+                    {getLabel('compliance_status', item.status)}
                   </span>
                 </td>
                 <td className="px-4 py-3">
@@ -260,7 +237,7 @@ export default function ComplianceClient() {
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Loại</label>
                   <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formType} onChange={e => setFormType(e.target.value)}>
-                    {Object.entries(typeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    {getByCategory('compliance_type').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                   </select>
                 </div>
                 <div>

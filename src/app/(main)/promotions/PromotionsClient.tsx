@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Can } from '@/components/Can'
 import { PageGuard } from '@/components/PageGuard'
+import { useLookups } from '@/hooks/useLookups'
 
 interface Promotion {
   id: number
@@ -15,26 +16,12 @@ interface Promotion {
   status: string
 }
 
-const typeLabels: Record<string, string> = {
-  discount: 'Giảm giá',
-  buy_x_get_y: 'Mua X tặng Y',
-  free_ship: 'Miễn phí vận chuyển',
-  voucher: 'Voucher',
-  seasonal: 'Theo mùa',
-}
-
-const statusLabels: Record<string, string> = {
-  active: 'Đang áp dụng',
-  scheduled: 'Sắp diễn ra',
-  expired: 'Đã kết thúc',
-  cancelled: 'Đã hủy',
-}
-
 function formatVND(amount: number) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
 }
 
 export default function PromotionsClient() {
+  const { getLabel, getByCategory, getColor } = useLookups()
   const [data, setData] = useState<Promotion[]>([])
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
@@ -151,14 +138,14 @@ export default function PromotionsClient() {
             <label className="text-xs text-zinc-500 mb-1 block">Loại</label>
             <select className="px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }}>
               <option value="">Tất cả</option>
-              {Object.entries(typeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {getByCategory('promotion_type').map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
           <div>
             <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
             <select className="px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }}>
               <option value="">Tất cả</option>
-              {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {getByCategory('promotion_status').map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           </div>
           <Can permission="promotions:write">
@@ -186,13 +173,13 @@ export default function PromotionsClient() {
               <tr key={item.id} className="border-b border-zinc-200 hover:bg-zinc-50">
                 <td className="px-4 py-3 text-zinc-900 font-mono text-xs">{item.code}</td>
                 <td className="px-4 py-3 text-zinc-900 font-medium">{item.name}</td>
-                <td className="px-4 py-3 text-zinc-600">{typeLabels[item.type] || item.type}</td>
+                <td className="px-4 py-3 text-zinc-600">{getLabel('promotion_type', item.type)}</td>
                 <td className="px-4 py-3 text-zinc-900 text-right">{item.type === 'discount' ? `${item.value}%` : formatVND(item.value)}</td>
                 <td className="px-4 py-3 text-zinc-500 text-xs">{new Date(item.startDate).toLocaleDateString('vi-VN')}</td>
                 <td className="px-4 py-3 text-zinc-500 text-xs">{new Date(item.endDate).toLocaleDateString('vi-VN')}</td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs px-1.5 py-0.5 ${item.status === 'active' ? 'bg-green-100 text-green-800' : item.status === 'scheduled' ? 'bg-blue-100 text-blue-800' : item.status === 'expired' ? 'bg-zinc-100 text-zinc-600' : 'bg-red-100 text-red-800'}`}>
-                    {statusLabels[item.status] || item.status}
+                  <span className={`text-xs px-1.5 py-0.5 ${getColor('promotion_status', item.status) ?? 'bg-zinc-100 text-zinc-600'}`}>
+                    {getLabel('promotion_status', item.status)}
                   </span>
                 </td>
                 <td className="px-4 py-3">
@@ -250,7 +237,7 @@ export default function PromotionsClient() {
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Loại</label>
                   <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formType} onChange={e => setFormType(e.target.value)}>
-                    {Object.entries(typeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    {getByCategory('promotion_type').map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                 </div>
                 <div>
@@ -271,8 +258,7 @@ export default function PromotionsClient() {
               <div>
                 <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
                 <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formStatus} onChange={e => setFormStatus(e.target.value)}>
-                  <option value="active">Đang áp dụng</option>
-                  <option value="scheduled">Sắp diễn ra</option>
+                  {getByCategory('promotion_status').filter(l => l.isActive).map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
               </div>
             </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Can } from '@/components/Can'
 import { PageGuard } from '@/components/PageGuard'
+import { useLookups } from '@/hooks/useLookups'
 
 interface SalesRep {
   id: number
@@ -17,13 +18,6 @@ interface SalesRep {
   status: string
 }
 
-const regionLabels: Record<string, string> = {
-  north: 'Miền Bắc',
-  central: 'Miền Trung',
-  south: 'Miền Nam',
-  highlands: 'Tây Nguyên',
-}
-
 const tabLabels = ['Danh sách nhân viên', 'Hiệu suất', 'Phân vùng', 'Theo dõi KPI']
 
 function formatVND(amount: number) {
@@ -31,6 +25,7 @@ function formatVND(amount: number) {
 }
 
 export default function SalesTeamClient() {
+  const { getLabel, getByCategory, getColor } = useLookups()
   const [data, setData] = useState<SalesRep[]>([])
   const [search, setSearch] = useState('')
   const [positionFilter, setPositionFilter] = useState('')
@@ -86,10 +81,10 @@ export default function SalesTeamClient() {
   const positions = [...new Set(data.map(s => s.position).filter(Boolean))]
   const departments = [...new Set(data.map(s => s.department).filter(Boolean))]
 
-  const regionData = ['north', 'central', 'south', 'highlands'].map(r => ({
-    region: r,
-    label: regionLabels[r],
-    count: data.filter(s => s.territory === r).length,
+  const regionData = getByCategory('customer_region').map(r => ({
+    region: r.value,
+    label: r.label,
+    count: data.filter(s => s.territory === r.value).length,
     revenue: 0,
   }))
 
@@ -228,16 +223,14 @@ export default function SalesTeamClient() {
                 <label className="text-xs text-zinc-500 mb-1 block">Khu vực</label>
                 <select className="px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={regionFilter} onChange={e => { setRegionFilter(e.target.value); setPage(1) }}>
                   <option value="">Tất cả</option>
-                  {Object.entries(regionLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  {getByCategory('customer_region').map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
               </div>
               <div>
                 <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
                 <select className="px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }}>
                   <option value="">Tất cả</option>
-                  <option value="active">Đang làm việc</option>
-                  <option value="inactive">Đã nghỉ</option>
-                  <option value="probation">Thử việc</option>
+                  {getByCategory('employee_status').map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
               </div>
               <Can permission="sales-team:write"><button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800" onClick={handleOpenModal}>+ Thêm nhân viên</button></Can>
@@ -267,10 +260,10 @@ export default function SalesTeamClient() {
                         <td className="px-4 py-3 text-zinc-600">{item.phone}</td>
                         <td className="px-4 py-3 text-zinc-600">{item.position}</td>
                         <td className="px-4 py-3 text-zinc-600">{item.department}</td>
-                        <td className="px-4 py-3 text-zinc-600">{regionLabels[item.territory] || item.territory}</td>
+                        <td className="px-4 py-3 text-zinc-600">{getLabel('customer_region', item.territory)}</td>
                         <td className="px-4 py-3">
-                          <span className={`text-xs px-1.5 py-0.5 ${item.status === 'active' ? 'bg-green-100 text-green-800' : item.status === 'probation' ? 'bg-yellow-100 text-yellow-800' : 'bg-zinc-100 text-zinc-600'}`}>
-                            {item.status === 'active' ? 'Đang làm' : item.status === 'probation' ? 'Thử việc' : 'Đã nghỉ'}
+                          <span className={`text-xs px-1.5 py-0.5 ${getColor('employee_status', item.status) ?? 'bg-zinc-100 text-zinc-600'}`}>
+                            {getLabel('employee_status', item.status)}
                           </span>
                         </td>
                         <td className="px-4 py-3">
@@ -324,7 +317,7 @@ export default function SalesTeamClient() {
                     <tr key={s.id} className="border-b border-zinc-200 hover:bg-zinc-50">
                       <td className="px-4 py-3 text-zinc-500">{i + 1}</td>
                       <td className="px-4 py-3 text-zinc-900 font-medium">{s.name}</td>
-                      <td className="px-4 py-3 text-zinc-600">{regionLabels[s.territory] || s.territory}</td>
+                      <td className="px-4 py-3 text-zinc-600">{getLabel('customer_region', s.territory)}</td>
                       <td className="px-4 py-3 text-zinc-900 text-right">{s.email}</td>
                       <td className="px-4 py-3 text-right">
                         <span className="text-xs px-1.5 py-0.5 bg-zinc-100 text-zinc-600">-</span>
@@ -378,10 +371,10 @@ export default function SalesTeamClient() {
                       <td className="px-4 py-3 text-zinc-900 font-medium">{s.name}</td>
                       <td className="px-4 py-3 text-zinc-900 text-right">{s.email}</td>
                       <td className="px-4 py-3 text-zinc-900 text-right">{s.phone || '-'}</td>
-                      <td className="px-4 py-3 text-zinc-900 text-right">{s.role === 'sales' ? 'Kinh doanh' : 'Dược sĩ'}</td>
+                      <td className="px-4 py-3 text-zinc-900 text-right">{getLabel('employee_role', s.role)}</td>
                       <td className="px-4 py-3">
-                        <span className={`text-xs px-1.5 py-0.5 ${s.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-zinc-100 text-zinc-600'}`}>
-                          {s.status === 'active' ? 'Đang làm' : 'Đã nghỉ'}
+                        <span className={`text-xs px-1.5 py-0.5 ${getColor('employee_status', s.status) ?? 'bg-zinc-100 text-zinc-600'}`}>
+                          {getLabel('employee_status', s.status)}
                         </span>
                       </td>
                     </tr>
@@ -426,8 +419,7 @@ export default function SalesTeamClient() {
                   <div>
                     <label className="text-xs text-zinc-500 mb-1 block">Vai trò</label>
                     <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formRole} onChange={e => setFormRole(e.target.value)}>
-                      <option value="sales">Kinh doanh</option>
-                      <option value="pharmacy-rep">Dược sĩ</option>
+                      {getByCategory('employee_role').map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                     </select>
                   </div>
                   <div>
@@ -443,16 +435,14 @@ export default function SalesTeamClient() {
                   <div>
                     <label className="text-xs text-zinc-500 mb-1 block">Khu vực</label>
                     <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formTerritory} onChange={e => setFormTerritory(e.target.value)}>
-                      {Object.entries(regionLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                      {getByCategory('customer_region').map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                     </select>
                   </div>
                 </div>
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
                   <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formStatus} onChange={e => setFormStatus(e.target.value)}>
-                    <option value="active">Đang làm việc</option>
-                    <option value="inactive">Đã nghỉ</option>
-                    <option value="probation">Thử việc</option>
+                    {getByCategory('employee_status').map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                   </select>
                 </div>
               </div>

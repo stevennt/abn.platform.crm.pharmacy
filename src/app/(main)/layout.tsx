@@ -3,6 +3,7 @@ import Header from '@/components/Header'
 import { getCurrentUser } from '@/lib/auth'
 import { getUserPermissions } from '@/lib/permissions'
 import { PermissionProvider } from '@/hooks/PermissionContext'
+import { LookupProvider } from '@/hooks/useLookups'
 
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser()
@@ -11,15 +12,17 @@ export default async function MainLayout({ children }: { children: React.ReactNo
 
   return (
     <PermissionProvider role={role} permissions={permissions}>
-      <div className="flex h-screen">
-        <Sidebar role={role} permissions={permissions} />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <Header />
-          <main className="flex-1 overflow-y-auto p-4 bg-zinc-50">
-            {children}
-          </main>
+      <LookupProvider>
+        <div className="flex h-screen">
+          <Sidebar role={role} permissions={permissions} />
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <Header />
+            <main className="flex-1 overflow-y-auto p-4 bg-zinc-50">
+              {children}
+            </main>
+          </div>
         </div>
-      </div>
+      </LookupProvider>
     </PermissionProvider>
   )
 }

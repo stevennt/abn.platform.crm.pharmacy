@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Can } from '@/components/Can'
 import { PageGuard } from '@/components/PageGuard'
+import { useLookups } from '@/hooks/useLookups'
 
 interface Product {
   id: number
@@ -19,19 +20,12 @@ interface Product {
   status: string
 }
 
-const categoryLabels: Record<string, string> = {
-  prescription: 'Thuốc kê đơn',
-  otc: 'Thuốc OTC',
-  supplement: 'Thực phẩm chức năng',
-  'medical-device': 'Trang thiết bị y tế',
-  consumable: 'Vật tư tiêu hao',
-}
-
 function formatVND(amount: number) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
 }
 
 export default function ProductsClient() {
+  const { getLabel, getByCategory, getColor, loading } = useLookups()
   const [data, setData] = useState<Product[]>([])
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
@@ -190,7 +184,7 @@ export default function ProductsClient() {
             <label className="text-xs text-zinc-500 mb-1 block">Danh mục</label>
             <select className="px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={categoryFilter} onChange={e => { setCategoryFilter(e.target.value); setPage(1) }}>
               <option value="">Tất cả</option>
-              {Object.entries(categoryLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    {getByCategory('product_category').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
             </select>
           </div>
           <div>
@@ -204,10 +198,7 @@ export default function ProductsClient() {
             <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
             <select className="px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }}>
               <option value="">Tất cả</option>
-              <option value="active">Đang kinh doanh</option>
-              <option value="inactive">Ngừng KD</option>
-              <option value="expiring">Sắp hết hạn</option>
-              <option value="discontinued">Ngừng SX</option>
+              {getByCategory('product_status').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
             </select>
           </div>
           <Can permission="products:write">
@@ -240,14 +231,14 @@ export default function ProductsClient() {
                 <td className="px-4 py-3 text-zinc-900">{item.code}</td>
                 <td className="px-4 py-3 text-zinc-900 font-medium">{item.name}</td>
                 <td className="px-4 py-3 text-zinc-600">{item.activeIngredient}</td>
-                <td className="px-4 py-3 text-zinc-600">{categoryLabels[item.category] || item.category}</td>
+                <td className="px-4 py-3 text-zinc-600">{loading ? '...' : getLabel('product_category', item.category)}</td>
                 <td className="px-4 py-3 text-zinc-600">{item.manufacturer}</td>
                 <td className="px-4 py-3 text-zinc-600">{item.unit}</td>
                 <td className="px-4 py-3 text-zinc-900 text-right">{formatVND(item.sellingPrice)}</td>
                 <td className="px-4 py-3 text-zinc-900 text-right">{item.stock}</td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs px-1.5 py-0.5 ${item.status === 'active' ? 'bg-green-100 text-green-800' : item.status === 'inactive' ? 'bg-zinc-100 text-zinc-600' : item.status === 'expiring' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
-                    {item.status === 'active' ? 'Đang KD' : item.status === 'inactive' ? 'Ngừng KD' : item.status === 'expiring' ? 'Sắp HH' : 'Ngừng SX'}
+                  <span className={`text-xs px-1.5 py-0.5 ${getColor('product_status', item.status) || 'bg-zinc-100 text-zinc-800'}`}>
+                    {loading ? '...' : getLabel('product_status', item.status)}
                   </span>
                 </td>
                 <td className="px-4 py-3">
@@ -309,7 +300,7 @@ export default function ProductsClient() {
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Danh mục</label>
                   <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formCategory} onChange={e => setFormCategory(e.target.value)}>
-                    {Object.entries(categoryLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {getByCategory('product_category').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -336,8 +327,7 @@ export default function ProductsClient() {
               <div>
                 <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
                 <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formStatus} onChange={e => setFormStatus(e.target.value)}>
-                  <option value="active">Đang kinh doanh</option>
-                  <option value="inactive">Ngừng KD</option>
+                  {getByCategory('product_status').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                 </select>
               </div>
             </div>

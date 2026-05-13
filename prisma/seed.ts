@@ -556,6 +556,156 @@ async function main() {
     },
   })
 
+  // Create lookups (reference data)
+  const lookupData: { category: string; value: string; label: string; color?: string; sortOrder: number }[] = [
+    // Customer types
+    { category: 'customer_type', value: 'pharmacy', label: 'Nhà thuốc', sortOrder: 1 },
+    { category: 'customer_type', value: 'hospital', label: 'Bệnh viện', sortOrder: 2 },
+    { category: 'customer_type', value: 'clinic', label: 'Phòng khám', sortOrder: 3 },
+    { category: 'customer_type', value: 'distributor', label: 'Nhà phân phối', sortOrder: 4 },
+    { category: 'customer_type', value: 'wholesaler', label: 'Đại lý sỉ', sortOrder: 5 },
+    { category: 'customer_type', value: 'retailer', label: 'Bán lẻ', sortOrder: 6 },
+    // Customer regions
+    { category: 'customer_region', value: 'north', label: 'Miền Bắc', sortOrder: 1 },
+    { category: 'customer_region', value: 'central', label: 'Miền Trung', sortOrder: 2 },
+    { category: 'customer_region', value: 'south', label: 'Miền Nam', sortOrder: 3 },
+    { category: 'customer_region', value: 'highlands', label: 'Tây Nguyên', sortOrder: 4 },
+    // Customer statuses
+    { category: 'customer_status', value: 'active', label: 'Hoạt động', sortOrder: 1 },
+    { category: 'customer_status', value: 'inactive', label: 'Không hoạt động', sortOrder: 2 },
+    { category: 'customer_status', value: 'potential', label: 'Tiềm năng', sortOrder: 3 },
+    { category: 'customer_status', value: 'blocked', label: 'Bị chặn', sortOrder: 4 },
+    // Product categories
+    { category: 'product_category', value: 'prescription', label: 'Thuốc kê đơn', sortOrder: 1 },
+    { category: 'product_category', value: 'otc', label: 'Thuốc OTC', sortOrder: 2 },
+    { category: 'product_category', value: 'supplement', label: 'Thực phẩm chức năng', sortOrder: 3 },
+    { category: 'product_category', value: 'medical-device', label: 'Trang thiết bị y tế', sortOrder: 4 },
+    { category: 'product_category', value: 'consumable', label: 'Vật tư tiêu hao', sortOrder: 5 },
+    // Product statuses
+    { category: 'product_status', value: 'active', label: 'Hoạt động', sortOrder: 1 },
+    { category: 'product_status', value: 'inactive', label: 'Ngừng kinh doanh', sortOrder: 2 },
+    { category: 'product_status', value: 'discontinued', label: 'Ngừng sản xuất', sortOrder: 3 },
+    // Inventory statuses + colors
+    { category: 'inventory_status', value: 'in-stock', label: 'Còn hàng', color: 'bg-green-100 text-green-800', sortOrder: 1 },
+    { category: 'inventory_status', value: 'low-stock', label: 'Sắp hết', color: 'bg-yellow-100 text-yellow-800', sortOrder: 2 },
+    { category: 'inventory_status', value: 'expiring', label: 'Sắp hết hạn', color: 'bg-orange-100 text-orange-800', sortOrder: 3 },
+    { category: 'inventory_status', value: 'expired', label: 'Hết hạn', color: 'bg-red-100 text-red-800', sortOrder: 4 },
+    { category: 'inventory_status', value: 'out-of-stock', label: 'Hết hàng', color: 'bg-gray-100 text-gray-800', sortOrder: 5 },
+    // Warehouses
+    { category: 'warehouse', value: 'main', label: 'Kho chính', sortOrder: 1 },
+    { category: 'warehouse', value: 'cold', label: 'Kho lạnh', sortOrder: 2 },
+    { category: 'warehouse', value: 'quarantine', label: 'Kho cách ly', sortOrder: 3 },
+    { category: 'warehouse', value: 'return', label: 'Kho hàng trả', sortOrder: 4 },
+    // Sales order statuses + colors
+    { category: 'order_status', value: 'pending', label: 'Chờ duyệt', color: 'bg-yellow-100 text-yellow-800', sortOrder: 1 },
+    { category: 'order_status', value: 'confirmed', label: 'Đã duyệt', color: 'bg-blue-100 text-blue-800', sortOrder: 2 },
+    { category: 'order_status', value: 'processing', label: 'Đang xử lý', color: 'bg-indigo-100 text-indigo-800', sortOrder: 3 },
+    { category: 'order_status', value: 'shipped', label: 'Đã giao', color: 'bg-purple-100 text-purple-800', sortOrder: 4 },
+    { category: 'order_status', value: 'completed', label: 'Hoàn thành', color: 'bg-green-100 text-green-800', sortOrder: 5 },
+    { category: 'order_status', value: 'cancelled', label: 'Đã hủy', color: 'bg-red-100 text-red-800', sortOrder: 6 },
+    // Purchase order statuses + colors
+    { category: 'po_status', value: 'draft', label: 'Nháp', color: 'bg-gray-100 text-gray-800', sortOrder: 1 },
+    { category: 'po_status', value: 'pending', label: 'Chờ duyệt', color: 'bg-yellow-100 text-yellow-800', sortOrder: 2 },
+    { category: 'po_status', value: 'approved', label: 'Đã duyệt', color: 'bg-blue-100 text-blue-800', sortOrder: 3 },
+    { category: 'po_status', value: 'ordered', label: 'Đã đặt', color: 'bg-indigo-100 text-indigo-800', sortOrder: 4 },
+    { category: 'po_status', value: 'delivered', label: 'Đã giao', color: 'bg-purple-100 text-purple-800', sortOrder: 5 },
+    { category: 'po_status', value: 'completed', label: 'Hoàn thành', color: 'bg-green-100 text-green-800', sortOrder: 6 },
+    { category: 'po_status', value: 'cancelled', label: 'Đã hủy', color: 'bg-red-100 text-red-800', sortOrder: 7 },
+    // Priorities + colors
+    { category: 'priority', value: 'low', label: 'Thấp', color: 'bg-gray-100 text-gray-800', sortOrder: 1 },
+    { category: 'priority', value: 'normal', label: 'Bình thường', color: 'bg-blue-100 text-blue-800', sortOrder: 2 },
+    { category: 'priority', value: 'high', label: 'Cao', color: 'bg-orange-100 text-orange-800', sortOrder: 3 },
+    { category: 'priority', value: 'urgent', label: 'Khẩn cấp', color: 'bg-red-100 text-red-800', sortOrder: 4 },
+    // Distributor types
+    { category: 'distributor_type', value: 'exclusive', label: 'Đại lý độc quyền', sortOrder: 1 },
+    { category: 'distributor_type', value: 'non-exclusive', label: 'Không độc quyền', sortOrder: 2 },
+    { category: 'distributor_type', value: 'general', label: 'Đại lý tổng hợp', sortOrder: 3 },
+    { category: 'distributor_type', value: 'sub', label: 'Đại lý cấp 2', sortOrder: 4 },
+    { category: 'distributor_type', value: 'retail', label: 'Cửa hàng bán lẻ', sortOrder: 5 },
+    // Distributor statuses
+    { category: 'distributor_status', value: 'active', label: 'Hoạt động', sortOrder: 1 },
+    { category: 'distributor_status', value: 'inactive', label: 'Ngừng hợp tác', sortOrder: 2 },
+    { category: 'distributor_status', value: 'suspended', label: 'Tạm ngưng', sortOrder: 3 },
+    // Employee statuses
+    { category: 'employee_status', value: 'active', label: 'Đang làm việc', sortOrder: 1 },
+    { category: 'employee_status', value: 'inactive', label: 'Đã nghỉ', sortOrder: 2 },
+    { category: 'employee_status', value: 'probation', label: 'Thử việc', sortOrder: 3 },
+    // Employee roles
+    { category: 'employee_role', value: 'sales', label: 'Kinh doanh', sortOrder: 1 },
+    { category: 'employee_role', value: 'pharmacy-rep', label: 'Dược sĩ', sortOrder: 2 },
+    // Promotion types
+    { category: 'promotion_type', value: 'discount', label: 'Giảm giá', sortOrder: 1 },
+    { category: 'promotion_type', value: 'combo', label: 'Combo', sortOrder: 2 },
+    { category: 'promotion_type', value: 'campaign', label: 'Chiến dịch', sortOrder: 3 },
+    { category: 'promotion_type', value: 'buy_x_get_y', label: 'Mua X tặng Y', sortOrder: 4 },
+    { category: 'promotion_type', value: 'free_ship', label: 'Miễn phí vận chuyển', sortOrder: 5 },
+    { category: 'promotion_type', value: 'voucher', label: 'Voucher', sortOrder: 6 },
+    { category: 'promotion_type', value: 'seasonal', label: 'Theo mùa', sortOrder: 7 },
+    // Promotion statuses
+    { category: 'promotion_status', value: 'active', label: 'Đang áp dụng', sortOrder: 1 },
+    { category: 'promotion_status', value: 'scheduled', label: 'Sắp diễn ra', sortOrder: 2 },
+    { category: 'promotion_status', value: 'expired', label: 'Đã kết thúc', sortOrder: 3 },
+    { category: 'promotion_status', value: 'cancelled', label: 'Đã hủy', sortOrder: 4 },
+    // Price types
+    { category: 'price_type', value: 'wholesale', label: 'Giá bán sỉ', sortOrder: 1 },
+    { category: 'price_type', value: 'retail', label: 'Giá bán lẻ', sortOrder: 2 },
+    { category: 'price_type', value: 'special', label: 'Giá đặc biệt', sortOrder: 3 },
+    { category: 'price_type', value: 'contract', label: 'Giá hợp đồng', sortOrder: 4 },
+    // Price statuses
+    { category: 'price_status', value: 'active', label: 'Đang áp dụng', sortOrder: 1 },
+    { category: 'price_status', value: 'pending', label: 'Chờ áp dụng', sortOrder: 2 },
+    { category: 'price_status', value: 'expired', label: 'Hết hiệu lực', sortOrder: 3 },
+    // Compliance types
+    { category: 'compliance_type', value: 'license', label: 'Giấy phép kinh doanh', sortOrder: 1 },
+    { category: 'compliance_type', value: 'audit', label: 'Kiểm tra', sortOrder: 2 },
+    { category: 'compliance_type', value: 'regulatory-report', label: 'Báo cáo', sortOrder: 3 },
+    { category: 'compliance_type', value: 'certificate', label: 'Chứng chỉ hành nghề', sortOrder: 4 },
+    { category: 'compliance_type', value: 'inspection', label: 'Kiểm tra chất lượng', sortOrder: 5 },
+    { category: 'compliance_type', value: 'gpp', label: 'Chứng nhận GPP', sortOrder: 6 },
+    { category: 'compliance_type', value: 'gdp', label: 'Chứng nhận GDP', sortOrder: 7 },
+    { category: 'compliance_type', value: 'other', label: 'Khác', sortOrder: 8 },
+    // Compliance statuses + colors
+    { category: 'compliance_status', value: 'valid', label: 'Còn hiệu lực', color: 'bg-green-100 text-green-800', sortOrder: 1 },
+    { category: 'compliance_status', value: 'expiring', label: 'Sắp hết hạn', color: 'bg-yellow-100 text-yellow-800', sortOrder: 2 },
+    { category: 'compliance_status', value: 'expired', label: 'Hết hạn', color: 'bg-red-100 text-red-800', sortOrder: 3 },
+    { category: 'compliance_status', value: 'pending', label: 'Chờ cấp', color: 'bg-gray-100 text-gray-800', sortOrder: 4 },
+    { category: 'compliance_status', value: 'revoked', label: 'Đã thu hồi', color: 'bg-red-100 text-red-800', sortOrder: 5 },
+    // Tax types
+    { category: 'tax_type', value: 'vat', label: 'VAT', sortOrder: 1 },
+    { category: 'tax_type', value: 'special', label: 'Thuế tiêu thụ đặc biệt', sortOrder: 2 },
+    { category: 'tax_type', value: 'import', label: 'Thuế nhập khẩu', sortOrder: 3 },
+    // Tax statuses
+    { category: 'tax_status', value: 'active', label: 'Đang áp dụng', sortOrder: 1 },
+    { category: 'tax_status', value: 'inactive', label: 'Ngừng áp dụng', sortOrder: 2 },
+  ]
+
+  for (const lookup of lookupData) {
+    await prisma.lookup.upsert({
+      where: { category_value: { category: lookup.category, value: lookup.value } },
+      update: { label: lookup.label, color: lookup.color ?? null, sortOrder: lookup.sortOrder },
+      create: lookup,
+    })
+  }
+
+  // Seed settings defaults
+  const defaultSettings = [
+    { key: 'company_name', value: 'ABN Pharma CRM' },
+    { key: 'vat_rate', value: '10' },
+    { key: 'currency', value: 'VND' },
+    { key: 'low_stock_threshold', value: '10' },
+    { key: 'expiry_warning_days', value: '30' },
+    { key: 'enable_notifications', value: 'true' },
+    { key: 'auto_approve_orders', value: 'false' },
+  ]
+
+  for (const setting of defaultSettings) {
+    await prisma.setting.upsert({
+      where: { key: setting.key },
+      update: { value: setting.value },
+      create: setting,
+    })
+  }
+
   console.log('Seed data created successfully')
   console.log(` - ${customers.length} customers`)
   console.log(` - ${products.length} products`)
@@ -568,6 +718,8 @@ async function main() {
   console.log(' - 3 tax settings')
   console.log(' - 2 compliance records')
   console.log(' - 8 users (admin, warehouse, sales, pharmacy-rep, accountant, ceo, marketing, distribution, customer-care)')
+  console.log(` - ${lookupData.length} lookup values`)
+  console.log(` - ${defaultSettings.length} settings`)
 }
 
 main()

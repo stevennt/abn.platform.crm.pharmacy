@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [email, setEmail] = useState('admin@pharmacrm.com')
-  const [password, setPassword] = useState('admin123')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -76,14 +76,7 @@ export default function LoginPage() {
         </form>
 
         <div className="mt-6 p-3 bg-zinc-50 border border-zinc-200 text-xs text-zinc-500">
-          <p className="font-medium mb-1">Tài khoản dùng thử:</p>
-          <p>Admin: admin@pharmacrm.com / admin123</p>
-          <p>Giám đốc: ceo@pharmacrm.com / admin123</p>
-          <p>Kế toán: accountant@pharmacrm.com / admin123</p>
-          <p>Marketing: marketing@pharmacrm.com / admin123</p>
-          <p>Sales: sales@pharmacrm.com / admin123</p>
-          <p>NV Kinh doanh: rep@pharmacrm.com / admin123</p>
-          <p>Kho: warehouse@pharmacrm.com / admin123</p>
+          <p className="font-medium mb-1">Liên hệ quản trị viên để được cấp tài khoản</p>
         </div>
       </div>
     </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Can } from '@/components/Can'
 import { PageGuard } from '@/components/PageGuard'
+import { useLookups } from '@/hooks/useLookups'
 
 interface PriceListItem {
   id: number
@@ -24,18 +25,12 @@ interface ProductOption {
   name: string
 }
 
-const typeLabels: Record<string, string> = {
-  retail: 'Giá bán lẻ',
-  wholesale: 'Giá bán sỉ',
-  special: 'Giá đặc biệt',
-  contract: 'Giá hợp đồng',
-}
-
 function formatVND(amount: number) {
   return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount)
 }
 
 export default function PricingClient() {
+  const { getLabel, getByCategory, getColor } = useLookups()
   const [data, setData] = useState<PriceListItem[]>([])
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
@@ -151,16 +146,14 @@ export default function PricingClient() {
             <label className="text-xs text-zinc-500 mb-1 block">Loại giá</label>
             <select className="px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={typeFilter} onChange={e => { setTypeFilter(e.target.value); setPage(1) }}>
               <option value="">Tất cả</option>
-              {Object.entries(typeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              {getByCategory('price_type').map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
           <div>
             <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
             <select className="px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(1) }}>
               <option value="">Tất cả</option>
-              <option value="active">Đang áp dụng</option>
-              <option value="pending">Chờ áp dụng</option>
-              <option value="expired">Hết hiệu lực</option>
+              {getByCategory('price_status').map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           </div>
           <Can permission="pricing:write"><button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800" onClick={handleOpenModal}>+ Thêm bảng giá</button></Can>
@@ -187,14 +180,14 @@ export default function PricingClient() {
               <tr key={item.id} className="border-b border-zinc-200 hover:bg-zinc-50">
                 <td className="px-4 py-3 text-zinc-900">{item.productCode}</td>
                 <td className="px-4 py-3 text-zinc-900 font-medium">{item.productName}</td>
-                <td className="px-4 py-3 text-zinc-600">{typeLabels[item.type as keyof typeof typeLabels] || typeLabels[item.status as keyof typeof typeLabels] || 'Giá bán lẻ'}</td>
+                <td className="px-4 py-3 text-zinc-600">{getLabel('price_type', item.type)}</td>
                 <td className="px-4 py-3 text-zinc-900 text-right">{formatVND(item.basePrice)}</td>
                 <td className="px-4 py-3 text-zinc-900 text-right font-medium">{formatVND(item.sellingPrice)}</td>
                 <td className="px-4 py-3 text-zinc-500 text-xs">{new Date(item.effectiveDate).toLocaleDateString('vi-VN')}</td>
                 <td className="px-4 py-3 text-zinc-500 text-xs">{item.expiryDate ? new Date(item.expiryDate).toLocaleDateString('vi-VN') : '-'}</td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs px-1.5 py-0.5 ${item.status === 'active' ? 'bg-green-100 text-green-800' : item.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-zinc-100 text-zinc-600'}`}>
-                    {item.status === 'active' ? 'Đang áp dụng' : item.status === 'pending' ? 'Chờ áp dụng' : 'Hết hiệu lực'}
+                  <span className={`text-xs px-1.5 py-0.5 ${getColor('price_status', item.status) ?? 'bg-zinc-100 text-zinc-600'}`}>
+                    {getLabel('price_status', item.status)}
                   </span>
                 </td>
                 <td className="px-4 py-3">
@@ -245,7 +238,7 @@ export default function PricingClient() {
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Loại giá</label>
                   <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formType} onChange={e => setFormType(e.target.value)}>
-                    {Object.entries(typeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                    {getByCategory('price_type').map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                   </select>
                 </div>
                 <div>
