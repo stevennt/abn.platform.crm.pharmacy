@@ -63,7 +63,7 @@ export default function LineChart({ title, data, onPointClick }: LineChartProps)
         ))}
 
         {points.filter((_, idx) => data.length <= 12 || idx % Math.ceil(data.length / 12) === 0).map((p, _idx) => (
-          <text key={i} x={p.x} y={h - 6} textAnchor="middle" className="text-[8px] fill-zinc-500">
+          <text key={p.label} x={p.x} y={h - 6} textAnchor="middle" className="text-[8px] fill-zinc-500">
             {p.label}
           </text>
         ))}
