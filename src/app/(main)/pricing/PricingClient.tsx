@@ -1,17 +1,27 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Can } from '@/components/Can'
+import { PageGuard } from '@/components/PageGuard'
 
 interface PriceListItem {
   id: number
+  productId: number
   productCode: string
   productName: string
   category: string
+  type: string
   basePrice: number
   sellingPrice: number
   effectiveDate: string
   expiryDate: string
   status: string
+}
+
+interface ProductOption {
+  id: number
+  code: string
+  name: string
 }
 
 const typeLabels: Record<string, string> = {
@@ -34,13 +44,25 @@ export default function PricingClient() {
   const [showModal, setShowModal] = useState(false)
   const limit = 10
 
+  const [formProductId, setFormProductId] = useState('')
+  const [formType, setFormType] = useState('retail')
+  const [formPrice, setFormPrice] = useState('')
+  const [formStartDate, setFormStartDate] = useState('')
+  const [formEndDate, setFormEndDate] = useState('')
+  const [productOptions, setProductOptions] = useState<ProductOption[]>([])
+  const [editingItem, setEditingItem] = useState<PriceListItem | null>(null)
+  const [saving, setSaving] = useState(false)
+
   useEffect(() => {
-    fetch('/api/pricing')
-      .then(r => r.json())
-      .then(res => {
-        const list: PriceListItem[] = Array.isArray(res) ? res : res.data || []
-        setData(list)
-      })
+    Promise.all([
+      fetch('/api/price-lists').then(r => r.json()),
+      fetch('/api/products').then(r => r.json()),
+    ]).then(([priceRes, productRes]) => {
+      const list: PriceListItem[] = Array.isArray(priceRes) ? priceRes : priceRes.data || []
+      setData(list)
+      const products: ProductOption[] = Array.isArray(productRes) ? productRes : productRes.data || []
+      setProductOptions(products)
+    })
   }, [])
 
   const filtered = data.filter(item => {
@@ -53,8 +75,67 @@ export default function PricingClient() {
   const totalPages = Math.ceil(filtered.length / limit)
   const paged = filtered.slice((page - 1) * limit, page * limit)
 
+  function handleOpenModal() {
+    setEditingItem(null)
+    setFormProductId('')
+    setFormType('retail')
+    setFormPrice('')
+    setFormStartDate('')
+    setFormEndDate('')
+    setShowModal(true)
+  }
+
+  function handleEdit(item: PriceListItem) {
+    setEditingItem(item)
+    setFormProductId(String(item.productId))
+    setFormType(item.type)
+    setFormPrice(String(item.basePrice || item.sellingPrice))
+    setFormStartDate(item.effectiveDate ? item.effectiveDate.slice(0, 10) : '')
+    setFormEndDate(item.expiryDate ? item.expiryDate.slice(0, 10) : '')
+    setShowModal(true)
+  }
+
+  async function handleDelete(item: PriceListItem) {
+    if (!confirm(`Xóa bảng giá của ${item.productName}?`)) return
+    try {
+      await fetch(`/api/price-lists/${item.id}`, { method: 'DELETE' })
+    } catch { }
+    const [priceRes] = await Promise.all([
+      fetch('/api/price-lists').then(r => r.json()),
+    ])
+    setData(Array.isArray(priceRes) ? priceRes : priceRes.data || [])
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      const url = editingItem ? `/api/price-lists/${editingItem.id}` : '/api/price-lists'
+      await fetch(url, {
+        method: editingItem ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: parseInt(formProductId) || 0,
+          type: formType,
+          price: parseFloat(formPrice) || 0,
+          startDate: formStartDate,
+          endDate: formEndDate,
+        }),
+      })
+      setShowModal(false)
+      setEditingItem(null)
+      const [priceRes] = await Promise.all([
+        fetch('/api/price-lists').then(r => r.json()),
+      ])
+      setData(Array.isArray(priceRes) ? priceRes : priceRes.data || [])
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
-    <div className="animate-fade-in">
+    <PageGuard permission="pricing:read">
+      <div className="animate-fade-in">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-zinc-900">Quản Lý Giá</h1>
         <p className="text-zinc-500 text-sm">Thiết lập và quản lý bảng giá bán thuốc, TPCN, thiết bị y tế</p>
@@ -82,7 +163,7 @@ export default function PricingClient() {
               <option value="expired">Hết hiệu lực</option>
             </select>
           </div>
-          <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800" onClick={() => setShowModal(true)}>+ Thêm bảng giá</button>
+          <Can permission="pricing:write"><button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800" onClick={handleOpenModal}>+ Thêm bảng giá</button></Can>
         </div>
       </div>
 
@@ -106,7 +187,7 @@ export default function PricingClient() {
               <tr key={item.id} className="border-b border-zinc-200 hover:bg-zinc-50">
                 <td className="px-4 py-3 text-zinc-900">{item.productCode}</td>
                 <td className="px-4 py-3 text-zinc-900 font-medium">{item.productName}</td>
-                <td className="px-4 py-3 text-zinc-600">{typeLabels[item.status as keyof typeof typeLabels] || 'Giá bán lẻ'}</td>
+                <td className="px-4 py-3 text-zinc-600">{typeLabels[item.type as keyof typeof typeLabels] || typeLabels[item.status as keyof typeof typeLabels] || 'Giá bán lẻ'}</td>
                 <td className="px-4 py-3 text-zinc-900 text-right">{formatVND(item.basePrice)}</td>
                 <td className="px-4 py-3 text-zinc-900 text-right font-medium">{formatVND(item.sellingPrice)}</td>
                 <td className="px-4 py-3 text-zinc-500 text-xs">{new Date(item.effectiveDate).toLocaleDateString('vi-VN')}</td>
@@ -118,7 +199,8 @@ export default function PricingClient() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1 justify-center">
-                    <button className="px-2 py-1 text-xs border border-zinc-300 text-zinc-700 hover:bg-zinc-100">Sửa</button>
+                    <Can permission="pricing:write"><button className="px-2 py-1 text-xs border border-zinc-300 text-zinc-700 hover:bg-zinc-100" onClick={() => handleEdit(item)}>Sửa</button></Can>
+                    <Can permission="pricing:delete"><button className="px-2 py-1 text-xs border border-red-300 text-red-700 hover:bg-red-100" onClick={() => handleDelete(item)}>Xóa</button></Can>
                     <button className="px-2 py-1 text-xs border border-zinc-300 text-zinc-700 hover:bg-zinc-100">Xem</button>
                   </div>
                 </td>
@@ -148,46 +230,48 @@ export default function PricingClient() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowModal(false)}>
           <div className="bg-white border border-zinc-300 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
             <div className="border-b border-zinc-300 px-4 py-3 flex items-center justify-between">
-              <h2 className="font-semibold text-sm text-zinc-900">Thêm bảng giá</h2>
+              <h2 className="font-semibold text-sm text-zinc-900">{editingItem ? 'Sửa bảng giá' : 'Thêm bảng giá'}</h2>
               <button className="text-zinc-400 hover:text-zinc-900 text-lg" onClick={() => setShowModal(false)}>×</button>
             </div>
             <div className="p-4 space-y-3">
               <div>
                 <label className="text-xs text-zinc-500 mb-1 block">Sản phẩm</label>
-                <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none">
-                  <option>Chọn sản phẩm</option>
+                <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formProductId} onChange={e => setFormProductId(e.target.value)}>
+                  <option value="">Chọn sản phẩm</option>
+                  {productOptions.map(p => <option key={p.id} value={p.id}>{p.code} - {p.name}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Loại giá</label>
-                  <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none">
+                  <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formType} onChange={e => setFormType(e.target.value)}>
                     {Object.entries(typeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Giá bán</label>
-                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" type="number" placeholder="0" />
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" type="number" placeholder="0" value={formPrice} onChange={e => setFormPrice(e.target.value)} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Hiệu lực từ</label>
-                  <input type="date" className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" />
+                  <input type="date" className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formStartDate} onChange={e => setFormStartDate(e.target.value)} />
                 </div>
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Đến ngày</label>
-                  <input type="date" className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" />
+                  <input type="date" className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formEndDate} onChange={e => setFormEndDate(e.target.value)} />
                 </div>
               </div>
             </div>
             <div className="border-t border-zinc-300 px-4 py-3 flex justify-end gap-2">
               <button className="px-4 py-2 border border-zinc-300 text-zinc-700 text-sm hover:bg-zinc-100" onClick={() => setShowModal(false)}>Hủy</button>
-              <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800">Lưu</button>
+              <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800 disabled:opacity-50" onClick={handleSubmit} disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu'}</button>
             </div>
           </div>
         </div>
       )}
     </div>
+    </PageGuard>
   )
 }

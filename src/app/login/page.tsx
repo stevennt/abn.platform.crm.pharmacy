@@ -22,7 +22,7 @@ export default function LoginPage() {
     })
 
     if (res.ok) {
-      router.push('/')
+      router.push('/dashboard')
     } else {
       const data = await res.json()
       setError(data.error || 'Đăng nhập thất bại')
@@ -78,7 +78,11 @@ export default function LoginPage() {
         <div className="mt-6 p-3 bg-zinc-50 border border-zinc-200 text-xs text-zinc-500">
           <p className="font-medium mb-1">Tài khoản dùng thử:</p>
           <p>Admin: admin@pharmacrm.com / admin123</p>
+          <p>Giám đốc: ceo@pharmacrm.com / admin123</p>
+          <p>Kế toán: accountant@pharmacrm.com / admin123</p>
+          <p>Marketing: marketing@pharmacrm.com / admin123</p>
           <p>Sales: sales@pharmacrm.com / admin123</p>
+          <p>NV Kinh doanh: rep@pharmacrm.com / admin123</p>
           <p>Kho: warehouse@pharmacrm.com / admin123</p>
         </div>
       </div>

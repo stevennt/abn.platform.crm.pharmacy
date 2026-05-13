@@ -14,7 +14,7 @@ model User {
   email     String   @unique
   password  String
   phone     String?
-  role      String   @default("sales") // admin, warehouse, sales, pharmacy-rep, accountant, distribution, customer-care
+  role      String   @default("sales") // admin, warehouse, sales, pharmacy-rep, accountant, distribution, customer-care, ceo, marketing-manager
   department String?
   position  String?
   status    String   @default("active")

@@ -1,73 +1,84 @@
-import { getCurrentUser } from './auth'
-import { NextResponse } from 'next/server'
-
 type Role = 'admin' | 'warehouse' | 'sales' | 'pharmacy-rep' | 'accountant' | 'distribution' | 'customer-care' | 'ceo' | 'marketing-manager'
 
 const rolePermissions: Record<string, Role[]> = {
-  // admin can do everything
   '*': ['admin'],
-  // dashboard: everyone
   'dashboard:read': ['admin', 'warehouse', 'sales', 'pharmacy-rep', 'accountant', 'distribution', 'customer-care', 'ceo', 'marketing-manager'],
-  // customers: sales, pharmacy-rep can write; others read
   'customers:read': ['admin', 'warehouse', 'sales', 'pharmacy-rep', 'accountant', 'distribution', 'customer-care', 'ceo', 'marketing-manager'],
   'customers:write': ['admin', 'sales', 'pharmacy-rep'],
   'customers:delete': ['admin'],
-  // products: warehouse manages
   'products:read': ['admin', 'warehouse', 'sales', 'pharmacy-rep', 'accountant', 'ceo', 'marketing-manager'],
   'products:write': ['admin', 'warehouse'],
   'products:delete': ['admin'],
-  // inventory: warehouse manages
   'inventory:read': ['admin', 'warehouse', 'sales', 'pharmacy-rep', 'ceo'],
   'inventory:write': ['admin', 'warehouse'],
-  // sales orders: sales manages
   'sales-orders:read': ['admin', 'sales', 'pharmacy-rep', 'accountant', 'ceo', 'marketing-manager'],
   'sales-orders:write': ['admin', 'sales', 'pharmacy-rep'],
   'sales-orders:delete': ['admin'],
-  // purchase orders: warehouse manages
   'purchase-orders:read': ['admin', 'warehouse', 'accountant', 'ceo'],
   'purchase-orders:write': ['admin', 'warehouse'],
   'purchase-orders:delete': ['admin'],
-  // distribution
   'distribution:read': ['admin', 'distribution', 'sales', 'ceo', 'marketing-manager'],
   'distribution:write': ['admin', 'distribution', 'marketing-manager'],
-  // sales team
   'sales-team:read': ['admin', 'sales', 'distribution', 'ceo'],
   'sales-team:write': ['admin', 'sales'],
-  // kpi
   'kpi:read': ['admin', 'sales', 'pharmacy-rep', 'ceo'],
   'kpi:write': ['admin', 'sales'],
-  // promotions
   'promotions:read': ['admin', 'distribution', 'sales', 'ceo', 'marketing-manager'],
   'promotions:write': ['admin', 'distribution', 'marketing-manager'],
-  // pricing
   'pricing:read': ['admin', 'sales', 'warehouse', 'accountant', 'ceo', 'marketing-manager'],
   'pricing:write': ['admin', 'marketing-manager'],
-  // compliance
   'compliance:read': ['admin', 'warehouse', 'ceo'],
   'compliance:write': ['admin'],
-  // reports
   'reports:read': ['admin', 'sales', 'warehouse', 'accountant', 'distribution', 'ceo', 'marketing-manager'],
-  // tax
   'tax:read': ['admin', 'accountant', 'ceo'],
   'tax:write': ['admin', 'accountant'],
-  // settings
   'settings:read': ['admin', 'ceo'],
   'settings:write': ['admin'],
-  // users
   'users:read': ['admin', 'ceo', 'sales'],
   'users:write': ['admin', 'ceo', 'sales'],
 }
 
-export async function authorize(permission: string) {
-  const user = await getCurrentUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+export function getUserPermissions(role: string): string[] {
+  const perms: string[] = []
+  for (const [perm, roles] of Object.entries(rolePermissions)) {
+    if (roles.includes(role as Role)) {
+      perms.push(perm)
+    }
   }
+  return perms
+}
 
-  const allowedRoles = rolePermissions[permission] || rolePermissions['*']
-  if (!allowedRoles?.includes(user.role as Role)) {
-    return NextResponse.json({ error: 'Forbidden: insufficient permissions' }, { status: 403 })
-  }
+export function can(role: string, permission: string): boolean {
+  if (role === 'admin') return true
+  const allowedRoles = rolePermissions[permission]
+  if (!allowedRoles) return false
+  return allowedRoles.includes(role as Role)
+}
 
-  return null // null means authorized
+export interface NavItem {
+  href: string
+  label: string
+  icon: string
+  permission: string
+}
+
+export const navItems: NavItem[] = [
+  { href: '/dashboard', label: 'Dashboard', icon: '📊', permission: 'dashboard:read' },
+  { href: '/customers', label: 'Quản Lý Khách Hàng', icon: '👥', permission: 'customers:read' },
+  { href: '/products', label: 'Danh Mục Thuốc', icon: '💊', permission: 'products:read' },
+  { href: '/inventory', label: 'Quản Lý Kho', icon: '🏭', permission: 'inventory:read' },
+  { href: '/sales-orders', label: 'Đơn Hàng Bán', icon: '🛒', permission: 'sales-orders:read' },
+  { href: '/purchase-orders', label: 'Đơn Hàng Mua', icon: '📄', permission: 'purchase-orders:read' },
+  { href: '/distribution', label: 'Phân Phối - Đại Lý', icon: '🚚', permission: 'distribution:read' },
+  { href: '/sales-team', label: 'Đội Ngũ Sales', icon: '👔', permission: 'sales-team:read' },
+  { href: '/promotions', label: 'Chương Trình KM', icon: '🏷️', permission: 'promotions:read' },
+  { href: '/pricing', label: 'Quản Lý Giá', icon: '💰', permission: 'pricing:read' },
+  { href: '/compliance', label: 'Tuân Thủ Quy Định', icon: '🛡️', permission: 'compliance:read' },
+  { href: '/reports', label: 'Báo Cáo & Phân Tích', icon: '📈', permission: 'reports:read' },
+  { href: '/tax', label: 'Quản Lý Thuế', icon: '🧮', permission: 'tax:read' },
+  { href: '/settings', label: 'Cài Đặt Hệ Thống', icon: '⚙️', permission: 'settings:read' },
+]
+
+export function getVisibleNavItems(role: string): NavItem[] {
+  return navItems.filter(item => can(role, item.permission))
 }

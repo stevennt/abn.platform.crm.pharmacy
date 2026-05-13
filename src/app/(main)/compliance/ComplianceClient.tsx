@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Can } from '@/components/Can'
+import { PageGuard } from '@/components/PageGuard'
 
 interface ComplianceRecord {
   id: number
@@ -46,6 +48,15 @@ export default function ComplianceClient() {
   const [showModal, setShowModal] = useState(false)
   const limit = 10
 
+  const [formType, setFormType] = useState('license')
+  const [formTitle, setFormTitle] = useState('')
+  const [formDescription, setFormDescription] = useState('')
+  const [formIssuedDate, setFormIssuedDate] = useState('')
+  const [formExpiryDate, setFormExpiryDate] = useState('')
+  const [formStatus, setFormStatus] = useState('valid')
+  const [editingItem, setEditingItem] = useState<ComplianceRecord | null>(null)
+  const [saving, setSaving] = useState(false)
+
   useEffect(() => {
     fetch('/api/compliance')
       .then(r => r.json())
@@ -69,8 +80,65 @@ export default function ComplianceClient() {
   const expiringCount = data.filter(r => r.status === 'expiring').length
   const expiredCount = data.filter(r => r.status === 'expired').length
 
+  function handleOpenModal() {
+    setEditingItem(null)
+    setFormType('license')
+    setFormTitle('')
+    setFormDescription('')
+    setFormIssuedDate('')
+    setFormExpiryDate('')
+    setFormStatus('valid')
+    setShowModal(true)
+  }
+
+  function handleEdit(item: ComplianceRecord) {
+    setEditingItem(item)
+    setFormType(item.type)
+    setFormTitle(item.title)
+    setFormDescription(item.description)
+    setFormIssuedDate(item.issuedDate ? item.issuedDate.slice(0, 10) : '')
+    setFormExpiryDate(item.expiryDate ? item.expiryDate.slice(0, 10) : '')
+    setFormStatus(item.status)
+    setShowModal(true)
+  }
+
+  async function handleDelete(item: ComplianceRecord) {
+    if (!confirm(`Xóa hồ sơ ${item.title}?`)) return
+    try {
+      await fetch(`/api/compliance/${item.id}`, { method: 'DELETE' })
+    } catch { }
+    const res = await fetch('/api/compliance').then(r => r.json())
+    setData(Array.isArray(res) ? res : res.data || [])
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      const url = editingItem ? `/api/compliance/${editingItem.id}` : '/api/compliance'
+      await fetch(url, {
+        method: editingItem ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: formType,
+          title: formTitle,
+          description: formDescription,
+          status: formStatus,
+          expiryDate: formExpiryDate,
+        }),
+      })
+      setShowModal(false)
+      setEditingItem(null)
+      const res = await fetch('/api/compliance').then(r => r.json())
+      setData(Array.isArray(res) ? res : res.data || [])
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
-    <div className="animate-fade-in">
+    <PageGuard permission="compliance:read">
+      <div className="animate-fade-in">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-zinc-900">Tuân Thủ Quy Định</h1>
         <p className="text-zinc-500 text-sm">Quản lý giấy phép, chứng chỉ, kiểm tra chất lượng</p>
@@ -115,7 +183,9 @@ export default function ComplianceClient() {
               {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
-          <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800" onClick={() => setShowModal(true)}>+ Thêm hồ sơ</button>
+          <Can permission="compliance:write">
+            <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800" onClick={handleOpenModal}>+ Thêm hồ sơ</button>
+          </Can>
         </div>
       </div>
 
@@ -148,7 +218,12 @@ export default function ComplianceClient() {
                 <td className="px-4 py-3">
                   <div className="flex gap-1 justify-center">
                     <button className="px-2 py-1 text-xs border border-zinc-300 text-zinc-700 hover:bg-zinc-100">Xem</button>
-                    <button className="px-2 py-1 text-xs border border-zinc-300 text-zinc-700 hover:bg-zinc-100">Sửa</button>
+                    <Can permission="compliance:write">
+                      <button className="px-2 py-1 text-xs border border-zinc-300 text-zinc-700 hover:bg-zinc-100" onClick={() => handleEdit(item)}>Sửa</button>
+                    </Can>
+                    <Can permission="compliance:delete">
+                      <button className="px-2 py-1 text-xs border border-red-300 text-red-700 hover:bg-red-100" onClick={() => handleDelete(item)}>Xóa</button>
+                    </Can>
                   </div>
                 </td>
               </tr>
@@ -177,39 +252,39 @@ export default function ComplianceClient() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowModal(false)}>
           <div className="bg-white border border-zinc-300 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
             <div className="border-b border-zinc-300 px-4 py-3 flex items-center justify-between">
-              <h2 className="font-semibold text-sm text-zinc-900">Thêm hồ sơ tuân thủ</h2>
+              <h2 className="font-semibold text-sm text-zinc-900">{editingItem ? 'Sửa hồ sơ' : 'Thêm hồ sơ tuân thủ'}</h2>
               <button className="text-zinc-400 hover:text-zinc-900 text-lg" onClick={() => setShowModal(false)}>×</button>
             </div>
             <div className="p-4 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Loại</label>
-                  <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none">
+                  <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formType} onChange={e => setFormType(e.target.value)}>
                     {Object.entries(typeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Tên hồ sơ</label>
-                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Nhập tên" />
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Nhập tên" value={formTitle} onChange={e => setFormTitle(e.target.value)} />
                 </div>
               </div>
               <div>
                 <label className="text-xs text-zinc-500 mb-1 block">Mô tả</label>
-                <textarea className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" rows={3} placeholder="Mô tả" />
+                <textarea className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" rows={3} placeholder="Mô tả" value={formDescription} onChange={e => setFormDescription(e.target.value)} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Ngày cấp</label>
-                  <input type="date" className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" />
+                  <input type="date" className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formIssuedDate} onChange={e => setFormIssuedDate(e.target.value)} />
                 </div>
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Ngày hết hạn</label>
-                  <input type="date" className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" />
+                  <input type="date" className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formExpiryDate} onChange={e => setFormExpiryDate(e.target.value)} />
                 </div>
               </div>
               <div>
                 <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
-                <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none">
+                <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formStatus} onChange={e => setFormStatus(e.target.value)}>
                   <option value="valid">Còn hiệu lực</option>
                   <option value="pending">Chờ cấp</option>
                 </select>
@@ -217,11 +292,12 @@ export default function ComplianceClient() {
             </div>
             <div className="border-t border-zinc-300 px-4 py-3 flex justify-end gap-2">
               <button className="px-4 py-2 border border-zinc-300 text-zinc-700 text-sm hover:bg-zinc-100" onClick={() => setShowModal(false)}>Hủy</button>
-              <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800">Lưu</button>
+              <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800 disabled:opacity-50" onClick={handleSubmit} disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu'}</button>
             </div>
           </div>
         </div>
       )}
     </div>
+    </PageGuard>
   )
 }

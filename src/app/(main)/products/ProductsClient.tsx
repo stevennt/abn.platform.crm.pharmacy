@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Can } from '@/components/Can'
+import { PageGuard } from '@/components/PageGuard'
 
 interface Product {
   id: number
@@ -11,6 +13,8 @@ interface Product {
   manufacturer: string
   unit: string
   sellingPrice: number
+  purchasePrice: number
+  minStock: number
   stock: number
   status: string
 }
@@ -37,6 +41,19 @@ export default function ProductsClient() {
   const [showModal, setShowModal] = useState(false)
   const [stats, setStats] = useState({ total: 0, selling: 0, expiring: 0, needPriceUpdate: 0 })
   const limit = 10
+
+  const [formCode, setFormCode] = useState('')
+  const [formName, setFormName] = useState('')
+  const [formActiveIngredient, setFormActiveIngredient] = useState('')
+  const [formCategory, setFormCategory] = useState('prescription')
+  const [formManufacturer, setFormManufacturer] = useState('')
+  const [formUnit, setFormUnit] = useState('')
+  const [formSalePrice, setFormSalePrice] = useState('')
+  const [formPurchasePrice, setFormPurchasePrice] = useState('')
+  const [formMinStock, setFormMinStock] = useState('')
+  const [formStatus, setFormStatus] = useState('active')
+  const [editingItem, setEditingItem] = useState<Product | null>(null)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     fetch('/api/products')
@@ -67,8 +84,78 @@ export default function ProductsClient() {
 
   const manufacturers = [...new Set(data.map(p => p.manufacturer).filter(Boolean))]
 
+  function handleOpenModal() {
+    setEditingItem(null)
+    setFormCode('')
+    setFormName('')
+    setFormActiveIngredient('')
+    setFormCategory('prescription')
+    setFormManufacturer('')
+    setFormUnit('')
+    setFormSalePrice('')
+    setFormPurchasePrice('')
+    setFormMinStock('')
+    setFormStatus('active')
+    setShowModal(true)
+  }
+
+  function handleEdit(item: Product) {
+    setEditingItem(item)
+    setFormCode(item.code)
+    setFormName(item.name)
+    setFormActiveIngredient(item.activeIngredient)
+    setFormCategory(item.category)
+    setFormManufacturer(item.manufacturer)
+    setFormUnit(item.unit)
+    setFormSalePrice(String(item.sellingPrice))
+    setFormPurchasePrice(String(item.purchasePrice))
+    setFormMinStock(String(item.minStock))
+    setFormStatus(item.status)
+    setShowModal(true)
+  }
+
+  async function handleDelete(item: Product) {
+    if (!confirm(`Xóa sản phẩm ${item.name}?`)) return
+    try {
+      await fetch(`/api/products/${item.id}`, { method: 'DELETE' })
+    } catch { }
+    const res = await fetch('/api/products').then(r => r.json())
+    setData(Array.isArray(res) ? res : res.data || [])
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      const url = editingItem ? `/api/products/${editingItem.id}` : '/api/products'
+      await fetch(url, {
+        method: editingItem ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: formCode,
+          name: formName,
+          activeIngredient: formActiveIngredient,
+          category: formCategory,
+          manufacturer: formManufacturer,
+          unit: formUnit,
+          sellingPrice: parseFloat(formSalePrice) || 0,
+          purchasePrice: parseFloat(formPurchasePrice) || 0,
+          minStock: parseInt(formMinStock) || 0,
+          status: formStatus,
+        }),
+      })
+      setShowModal(false)
+      setEditingItem(null)
+      const res = await fetch('/api/products').then(r => r.json())
+      setData(Array.isArray(res) ? res : res.data || [])
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
-    <div className="animate-fade-in">
+    <PageGuard permission="products:read">
+      <div className="animate-fade-in">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-zinc-900">Danh Mục Thuốc</h1>
         <p className="text-zinc-500 text-sm">Quản lý sản phẩm, thuốc, TPCN, trang thiết bị y tế</p>
@@ -123,7 +210,9 @@ export default function ProductsClient() {
               <option value="discontinued">Ngừng SX</option>
             </select>
           </div>
-          <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800" onClick={() => setShowModal(true)}>+ Thêm sản phẩm</button>
+          <Can permission="products:write">
+            <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800" onClick={handleOpenModal}>+ Thêm sản phẩm</button>
+          </Can>
           <button className="px-4 py-2 border border-zinc-300 text-zinc-700 text-sm hover:bg-zinc-100">Import</button>
           <button className="px-4 py-2 border border-zinc-300 text-zinc-700 text-sm hover:bg-zinc-100">Xuất</button>
         </div>
@@ -164,7 +253,12 @@ export default function ProductsClient() {
                 <td className="px-4 py-3">
                   <div className="flex gap-1 justify-center">
                     <button className="px-2 py-1 text-xs border border-zinc-300 text-zinc-700 hover:bg-zinc-100">Xem</button>
-                    <button className="px-2 py-1 text-xs border border-zinc-300 text-zinc-700 hover:bg-zinc-100">Sửa</button>
+                    <Can permission="products:write">
+                      <button className="px-2 py-1 text-xs border border-zinc-300 text-zinc-700 hover:bg-zinc-100" onClick={() => handleEdit(item)}>Sửa</button>
+                    </Can>
+                    <Can permission="products:delete">
+                      <button className="px-2 py-1 text-xs border border-red-300 text-red-700 hover:bg-red-100" onClick={() => handleDelete(item)}>Xóa</button>
+                    </Can>
                   </div>
                 </td>
               </tr>
@@ -193,28 +287,28 @@ export default function ProductsClient() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowModal(false)}>
           <div className="bg-white border border-zinc-300 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
             <div className="border-b border-zinc-300 px-4 py-3 flex items-center justify-between">
-              <h2 className="font-semibold text-sm text-zinc-900">Thêm sản phẩm mới</h2>
+              <h2 className="font-semibold text-sm text-zinc-900">{editingItem ? 'Sửa sản phẩm' : 'Thêm sản phẩm mới'}</h2>
               <button className="text-zinc-400 hover:text-zinc-900 text-lg" onClick={() => setShowModal(false)}>×</button>
             </div>
             <div className="p-4 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Mã SP</label>
-                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Tự động" />
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Tự động" value={formCode} onChange={e => setFormCode(e.target.value)} />
                 </div>
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Tên sản phẩm</label>
-                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Nhập tên" />
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Nhập tên" value={formName} onChange={e => setFormName(e.target.value)} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Hoạt chất</label>
-                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Hoạt chất" />
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Hoạt chất" value={formActiveIngredient} onChange={e => setFormActiveIngredient(e.target.value)} />
                 </div>
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Danh mục</label>
-                  <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none">
+                  <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formCategory} onChange={e => setFormCategory(e.target.value)}>
                     {Object.entries(categoryLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
@@ -222,26 +316,26 @@ export default function ProductsClient() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Nhà SX</label>
-                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Nhà SX" />
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Nhà SX" value={formManufacturer} onChange={e => setFormManufacturer(e.target.value)} />
                 </div>
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Đơn vị</label>
-                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Đơn vị" />
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Đơn vị" value={formUnit} onChange={e => setFormUnit(e.target.value)} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Giá bán</label>
-                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" type="number" placeholder="0" />
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" type="number" placeholder="0" value={formSalePrice} onChange={e => setFormSalePrice(e.target.value)} />
                 </div>
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Tồn kho</label>
-                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" type="number" placeholder="0" />
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" type="number" placeholder="0" value={formMinStock} onChange={e => setFormMinStock(e.target.value)} />
                 </div>
               </div>
               <div>
                 <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
-                <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none">
+                <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formStatus} onChange={e => setFormStatus(e.target.value)}>
                   <option value="active">Đang kinh doanh</option>
                   <option value="inactive">Ngừng KD</option>
                 </select>
@@ -249,11 +343,12 @@ export default function ProductsClient() {
             </div>
             <div className="border-t border-zinc-300 px-4 py-3 flex justify-end gap-2">
               <button className="px-4 py-2 border border-zinc-300 text-zinc-700 text-sm hover:bg-zinc-100" onClick={() => setShowModal(false)}>Hủy</button>
-              <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800">Lưu</button>
+              <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800 disabled:opacity-50" onClick={handleSubmit} disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu'}</button>
             </div>
           </div>
         </div>
       )}
     </div>
+    </PageGuard>
   )
 }

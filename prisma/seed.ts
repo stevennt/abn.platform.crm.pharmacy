@@ -56,6 +56,71 @@ async function main() {
     },
   })
 
+  await prisma.user.create({
+    data: {
+      code: 'NV004',
+      name: 'Phạm Thị D',
+      email: 'accountant@pharmacrm.com',
+      password: hashedPassword,
+      role: 'accountant',
+      department: 'Kế toán',
+      position: 'Kế toán trưởng',
+      status: 'active',
+    },
+  })
+
+  await prisma.user.create({
+    data: {
+      code: 'NV005',
+      name: 'Hoàng Văn E',
+      email: 'ceo@pharmacrm.com',
+      password: hashedPassword,
+      role: 'ceo',
+      department: 'Ban Giám đốc',
+      position: 'Tổng Giám đốc',
+      status: 'active',
+    },
+  })
+
+  await prisma.user.create({
+    data: {
+      code: 'NV006',
+      name: 'Nguyễn Thị F',
+      email: 'marketing@pharmacrm.com',
+      password: hashedPassword,
+      role: 'marketing-manager',
+      department: 'Marketing',
+      position: 'Trưởng phòng Marketing',
+      status: 'active',
+    },
+  })
+
+  await prisma.user.create({
+    data: {
+      code: 'NV007',
+      name: 'Trần Văn G',
+      email: 'distribution@pharmacrm.com',
+      password: hashedPassword,
+      role: 'distribution',
+      department: 'Phân phối',
+      position: 'Quản lý phân phối',
+      status: 'active',
+    },
+  })
+
+  await prisma.user.create({
+    data: {
+      code: 'NV008',
+      name: 'Lý Thị H',
+      email: 'customercare@pharmacrm.com',
+      password: hashedPassword,
+      role: 'customer-care',
+      department: 'Chăm sóc KH',
+      position: 'Nhân viên CSKH',
+      status: 'active',
+    },
+  })
+
   // Create customers
   const customers = await Promise.all([
     prisma.customer.create({
@@ -491,18 +556,6 @@ async function main() {
     },
   })
 
-  await prisma.promotion.create({
-    data: {
-      code: 'KM003',
-      name: 'Chiến dịch sức khỏe mùa xuân',
-      type: 'campaign',
-      value: 20,
-      startDate: new Date('2024-01-15'),
-      endDate: new Date('2024-02-15'),
-      status: 'active',
-    },
-  })
-
   console.log('Seed data created successfully')
   console.log(` - ${customers.length} customers`)
   console.log(` - ${products.length} products`)
@@ -514,6 +567,7 @@ async function main() {
   console.log(' - 3 promotions')
   console.log(' - 3 tax settings')
   console.log(' - 2 compliance records')
+  console.log(' - 8 users (admin, warehouse, sales, pharmacy-rep, accountant, ceo, marketing, distribution, customer-care)')
 }
 
 main()

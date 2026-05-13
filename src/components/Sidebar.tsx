@@ -3,27 +3,13 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
+import { navItems as allNavItems, can } from '@/lib/permissions'
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: '📊' },
-  { href: '/customers', label: 'Quản Lý Khách Hàng', icon: '👥' },
-  { href: '/products', label: 'Danh Mục Thuốc', icon: '💊' },
-  { href: '/inventory', label: 'Quản Lý Kho', icon: '🏭' },
-  { href: '/sales-orders', label: 'Đơn Hàng Bán', icon: '🛒' },
-  { href: '/purchase-orders', label: 'Đơn Hàng Mua', icon: '📄' },
-  { href: '/distribution', label: 'Phân Phối - Đại Lý', icon: '🚚' },
-  { href: '/sales-team', label: 'Đội Ngũ Sales', icon: '👔' },
-  { href: '/promotions', label: 'Chương Trình KM', icon: '🏷️' },
-  { href: '/pricing', label: 'Quản Lý Giá', icon: '💰' },
-  { href: '/compliance', label: 'Tuân Thủ Quy Định', icon: '🛡️' },
-  { href: '/reports', label: 'Báo Cáo & Phân Tích', icon: '📈' },
-  { href: '/tax', label: 'Quản Lý Thuế', icon: '🧮' },
-  { href: '/settings', label: 'Cài Đặt Hệ Thống', icon: '⚙️' },
-]
-
-export default function Sidebar() {
+export default function Sidebar({ role, permissions: _permissions }: { role: string; permissions: string[] }) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+
+  const navItems = allNavItems.filter(item => can(role, item.permission))
 
   return (
     <aside className={`bg-white border-r border-zinc-300 flex flex-col transition-all ${collapsed ? 'w-16' : 'w-56'}`}>

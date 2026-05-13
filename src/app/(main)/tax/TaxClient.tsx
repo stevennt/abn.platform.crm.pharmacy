@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Can } from '@/components/Can'
+import { PageGuard } from '@/components/PageGuard'
 
 interface TaxSetting {
   id: number
@@ -23,6 +25,13 @@ export default function TaxClient() {
   const [showModal, setShowModal] = useState(false)
   const limit = 10
 
+  const [formName, setFormName] = useState('')
+  const [formRate, setFormRate] = useState('')
+  const [formType, setFormType] = useState('vat')
+  const [formStatus, setFormStatus] = useState('active')
+  const [editingItem, setEditingItem] = useState<TaxSetting | null>(null)
+  const [saving, setSaving] = useState(false)
+
   useEffect(() => {
     fetch('/api/tax')
       .then(r => r.json())
@@ -35,8 +44,60 @@ export default function TaxClient() {
   const totalPages = Math.ceil(data.length / limit)
   const paged = data.slice((page - 1) * limit, page * limit)
 
+  function handleOpenModal() {
+    setEditingItem(null)
+    setFormName('')
+    setFormRate('')
+    setFormType('vat')
+    setFormStatus('active')
+    setShowModal(true)
+  }
+
+  function handleEdit(item: TaxSetting) {
+    setEditingItem(item)
+    setFormName(item.name)
+    setFormRate(String(item.rate))
+    setFormType(item.type)
+    setFormStatus(item.status)
+    setShowModal(true)
+  }
+
+  async function handleDelete(item: TaxSetting) {
+    if (!confirm(`Xóa thuế suất ${item.name}?`)) return
+    try {
+      await fetch(`/api/tax/${item.id}`, { method: 'DELETE' })
+    } catch { }
+    const res = await fetch('/api/tax').then(r => r.json())
+    setData(Array.isArray(res) ? res : res.data || [])
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      const url = editingItem ? `/api/tax/${editingItem.id}` : '/api/tax'
+      await fetch(url, {
+        method: editingItem ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formName,
+          rate: parseFloat(formRate) || 0,
+          type: formType,
+          status: formStatus,
+        }),
+      })
+      setShowModal(false)
+      setEditingItem(null)
+      const res = await fetch('/api/tax').then(r => r.json())
+      setData(Array.isArray(res) ? res : res.data || [])
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
-    <div className="animate-fade-in">
+    <PageGuard permission="tax:read">
+      <div className="animate-fade-in">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-zinc-900">Quản Lý Thuế</h1>
         <p className="text-zinc-500 text-sm">Thiết lập các loại thuế và mức thuế suất</p>
@@ -64,7 +125,9 @@ export default function TaxClient() {
       <div className="bg-white border border-zinc-300 mb-6">
         <div className="p-4 flex justify-between items-center">
           <span className="text-sm text-zinc-700">Danh sách thuế suất</span>
-          <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800" onClick={() => setShowModal(true)}>+ Thêm thuế suất</button>
+          <Can permission="tax:write">
+            <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800" onClick={handleOpenModal}>+ Thêm thuế suất</button>
+          </Can>
         </div>
       </div>
 
@@ -92,7 +155,12 @@ export default function TaxClient() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1 justify-center">
-                    <button className="px-2 py-1 text-xs border border-zinc-300 text-zinc-700 hover:bg-zinc-100">Sửa</button>
+                    <Can permission="tax:write">
+                      <button className="px-2 py-1 text-xs border border-zinc-300 text-zinc-700 hover:bg-zinc-100" onClick={() => handleEdit(item)}>Sửa</button>
+                    </Can>
+                    <Can permission="tax:delete">
+                      <button className="px-2 py-1 text-xs border border-red-300 text-red-700 hover:bg-red-100" onClick={() => handleDelete(item)}>Xóa</button>
+                    </Can>
                   </div>
                 </td>
               </tr>
@@ -121,30 +189,30 @@ export default function TaxClient() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowModal(false)}>
           <div className="bg-white border border-zinc-300 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
             <div className="border-b border-zinc-300 px-4 py-3 flex items-center justify-between">
-              <h2 className="font-semibold text-sm text-zinc-900">Thêm thuế suất</h2>
+              <h2 className="font-semibold text-sm text-zinc-900">{editingItem ? 'Sửa thuế suất' : 'Thêm thuế suất'}</h2>
               <button className="text-zinc-400 hover:text-zinc-900 text-lg" onClick={() => setShowModal(false)}>×</button>
             </div>
             <div className="p-4 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Tên thuế</label>
-                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="VD: VAT 10%" />
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="VD: VAT 10%" value={formName} onChange={e => setFormName(e.target.value)} />
                 </div>
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Thuế suất (%)</label>
-                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" type="number" step="0.01" placeholder="10" />
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" type="number" step="0.01" placeholder="10" value={formRate} onChange={e => setFormRate(e.target.value)} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Loại thuế</label>
-                  <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none">
+                  <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formType} onChange={e => setFormType(e.target.value)}>
                     {Object.entries(typeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
-                  <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none">
+                  <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formStatus} onChange={e => setFormStatus(e.target.value)}>
                     <option value="active">Đang áp dụng</option>
                     <option value="inactive">Ngừng áp dụng</option>
                   </select>
@@ -153,11 +221,12 @@ export default function TaxClient() {
             </div>
             <div className="border-t border-zinc-300 px-4 py-3 flex justify-end gap-2">
               <button className="px-4 py-2 border border-zinc-300 text-zinc-700 text-sm hover:bg-zinc-100" onClick={() => setShowModal(false)}>Hủy</button>
-              <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800">Lưu</button>
+              <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800 disabled:opacity-50" onClick={handleSubmit} disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu'}</button>
             </div>
           </div>
         </div>
       )}
     </div>
+    </PageGuard>
   )
 }

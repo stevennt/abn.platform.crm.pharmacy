@@ -58,3 +58,24 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
   }
 }
+
+export async function POST(request: Request) {
+  try {
+    const auth = await authorize('users:write')
+    if (auth) return auth
+    const body = await request.json()
+    const user = await prisma.user.create({
+      data: {
+        ...body,
+        password: body.password || 'admin123',
+      },
+    })
+    const { password: _password, ...userWithoutPassword } = user
+    return NextResponse.json(userWithoutPassword, { status: 201 })
+  } catch (error: any) {
+    if (error?.code === 'P2002') {
+      return NextResponse.json({ error: 'User with this code or email already exists' }, { status: 409 })
+    }
+    return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
+  }
+}

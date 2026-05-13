@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Can } from '@/components/Can'
+import { PageGuard } from '@/components/PageGuard'
 
 interface Distributor {
   id: number
@@ -42,12 +44,24 @@ export default function DistributionClient() {
   const [regionFilter, setRegionFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [activeTab, setActiveTab] = useState(0)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingItem, setEditingItem] = useState<Distributor | null>(null)
+  const [editCode, setEditCode] = useState('')
+  const [editName, setEditName] = useState('')
+  const [editType, setEditType] = useState('exclusive')
+  const [editRegion, setEditRegion] = useState('north')
+  const [editRevenue, setEditRevenue] = useState('')
+  const [editCommission, setEditCommission] = useState('')
+  const [editCommissionRate, setEditCommissionRate] = useState('')
+  const [editStatus, setEditStatus] = useState('active')
+  const [editContractDate, setEditContractDate] = useState('')
+  const [updating, setUpdating] = useState(false)
   const [page, setPage] = useState(1)
   const [stats, setStats] = useState({ total: 0, active: 0, monthlyRevenue: 0, targetAchieved: 0 })
   const limit = 10
 
   useEffect(() => {
-    fetch('/api/distribution')
+    fetch('/api/distributors')
       .then(r => r.json())
       .then(res => {
         const list: Distributor[] = Array.isArray(res) ? res : res.data || []
@@ -73,6 +87,60 @@ export default function DistributionClient() {
   const totalPages = Math.ceil(filtered.length / limit)
   const paged = filtered.slice((page - 1) * limit, page * limit)
 
+  function handleEdit(item: Distributor) {
+    setEditingItem(item)
+    setEditCode(item.code)
+    setEditName(item.name)
+    setEditType(item.type)
+    setEditRegion(item.region)
+    setEditRevenue(String(item.revenue))
+    setEditCommission(String(item.commission))
+    setEditCommissionRate(String(item.commissionRate))
+    setEditStatus(item.status)
+    setEditContractDate(item.contractDate ? item.contractDate.slice(0, 10) : '')
+    setShowEditModal(true)
+  }
+
+  async function handleUpdate() {
+    if (!editingItem) return
+    setUpdating(true)
+    try {
+      const res = await fetch(`/api/distributors/${editingItem.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: editCode,
+          name: editName,
+          type: editType,
+          region: editRegion,
+          revenue: parseFloat(editRevenue) || 0,
+          commission: parseFloat(editCommission) || 0,
+          commissionRate: parseFloat(editCommissionRate) || 0,
+          status: editStatus,
+          contractDate: editContractDate || null,
+        }),
+      })
+      if (!res.ok) throw new Error('Cập nhật thất bại')
+      setShowEditModal(false)
+      setEditingItem(null)
+      const apiRes = await fetch('/api/distributors').then(r => r.json())
+      setData(Array.isArray(apiRes) ? apiRes : apiRes.data || [])
+    } catch {
+      alert('Cập nhật đại lý thất bại')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  async function handleDelete(item: Distributor) {
+    if (!confirm(`Xóa đại lý ${item.name}?`)) return
+    try {
+      await fetch(`/api/distributors/${item.id}`, { method: 'DELETE' })
+    } catch { }
+    const apiRes = await fetch('/api/distributors').then(r => r.json())
+    setData(Array.isArray(apiRes) ? apiRes : apiRes.data || [])
+  }
+
   const regionData = ['north', 'central', 'south', 'highlands'].map(r => ({
     region: r,
     label: regionLabels[r],
@@ -81,7 +149,8 @@ export default function DistributionClient() {
   }))
 
   return (
-    <div className="animate-fade-in">
+    <PageGuard permission="distribution:read">
+      <div className="animate-fade-in">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-zinc-900">Phân Phối - Đại Lý</h1>
         <p className="text-zinc-500 text-sm">Quản lý hệ thống đại lý, phân phối, hoa hồng</p>
@@ -198,7 +267,8 @@ export default function DistributionClient() {
                       <td className="px-4 py-3">
                         <div className="flex gap-1 justify-center">
                           <button className="px-2 py-1 text-xs border border-zinc-300 text-zinc-700 hover:bg-zinc-100">Xem</button>
-                          <button className="px-2 py-1 text-xs border border-zinc-300 text-zinc-700 hover:bg-zinc-100">Sửa</button>
+                          <Can permission="distribution:write"><button className="px-2 py-1 text-xs border border-zinc-300 text-zinc-700 hover:bg-zinc-100" onClick={() => handleEdit(item)}>Sửa</button></Can>
+                          <Can permission="distribution:delete"><button className="px-2 py-1 text-xs border border-red-300 text-red-700 hover:bg-red-100" onClick={() => handleDelete(item)}>Xóa</button></Can>
                         </div>
                       </td>
                     </tr>
@@ -322,6 +392,76 @@ export default function DistributionClient() {
           </div>
         )}
       </div>
+
+      {showEditModal && editingItem && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowEditModal(false)}>
+          <div className="bg-white border border-zinc-300 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
+            <div className="border-b border-zinc-300 px-4 py-3 flex items-center justify-between">
+              <h2 className="font-semibold text-sm text-zinc-900">Sửa đại lý {editingItem.code}</h2>
+              <button className="text-zinc-400 hover:text-zinc-900 text-lg" onClick={() => setShowEditModal(false)}>×</button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-zinc-500 mb-1 block">Mã đại lý</label>
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={editCode} onChange={e => setEditCode(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-500 mb-1 block">Tên đại lý</label>
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={editName} onChange={e => setEditName(e.target.value)} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-zinc-500 mb-1 block">Loại hình</label>
+                  <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={editType} onChange={e => setEditType(e.target.value)}>
+                    {Object.entries(typeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-500 mb-1 block">Vùng</label>
+                  <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={editRegion} onChange={e => setEditRegion(e.target.value)}>
+                    {Object.entries(regionLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-zinc-500 mb-1 block">Doanh thu</label>
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" type="number" value={editRevenue} onChange={e => setEditRevenue(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-500 mb-1 block">Hoa hồng</label>
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" type="number" value={editCommission} onChange={e => setEditCommission(e.target.value)} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-zinc-500 mb-1 block">Tỷ lệ hoa hồng (%)</label>
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" type="number" step="0.1" value={editCommissionRate} onChange={e => setEditCommissionRate(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-500 mb-1 block">Ngày ký HĐ</label>
+                  <input type="date" className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={editContractDate} onChange={e => setEditContractDate(e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
+                <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={editStatus} onChange={e => setEditStatus(e.target.value)}>
+                  <option value="active">Đang hoạt động</option>
+                  <option value="inactive">Ngừng HĐ</option>
+                  <option value="suspended">Tạm ngưng</option>
+                </select>
+              </div>
+            </div>
+            <div className="border-t border-zinc-300 px-4 py-3 flex justify-end gap-2">
+              <button className="px-4 py-2 border border-zinc-300 text-zinc-700 text-sm hover:bg-zinc-100" onClick={() => setShowEditModal(false)}>Hủy</button>
+              <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800 disabled:opacity-50" onClick={handleUpdate} disabled={updating}>{updating ? 'Đang lưu...' : 'Lưu'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+    </PageGuard>
   )
 }

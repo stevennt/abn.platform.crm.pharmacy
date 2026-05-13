@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Can } from '@/components/Can'
+import { PageGuard } from '@/components/PageGuard'
 
 interface Promotion {
   id: number
@@ -41,6 +43,16 @@ export default function PromotionsClient() {
   const [showModal, setShowModal] = useState(false)
   const limit = 10
 
+  const [formCode, setFormCode] = useState('')
+  const [formName, setFormName] = useState('')
+  const [formType, setFormType] = useState('discount')
+  const [formValue, setFormValue] = useState('')
+  const [formStartDate, setFormStartDate] = useState('')
+  const [formEndDate, setFormEndDate] = useState('')
+  const [formStatus, setFormStatus] = useState('active')
+  const [editingItem, setEditingItem] = useState<Promotion | null>(null)
+  const [saving, setSaving] = useState(false)
+
   useEffect(() => {
     fetch('/api/promotions')
       .then(r => r.json())
@@ -61,8 +73,69 @@ export default function PromotionsClient() {
   const totalPages = Math.ceil(filtered.length / limit)
   const paged = filtered.slice((page - 1) * limit, page * limit)
 
+  function handleOpenModal() {
+    setEditingItem(null)
+    setFormCode('')
+    setFormName('')
+    setFormType('discount')
+    setFormValue('')
+    setFormStartDate('')
+    setFormEndDate('')
+    setFormStatus('active')
+    setShowModal(true)
+  }
+
+  function handleEdit(item: Promotion) {
+    setEditingItem(item)
+    setFormCode(item.code)
+    setFormName(item.name)
+    setFormType(item.type)
+    setFormValue(String(item.value))
+    setFormStartDate(item.startDate ? item.startDate.slice(0, 10) : '')
+    setFormEndDate(item.endDate ? item.endDate.slice(0, 10) : '')
+    setFormStatus(item.status)
+    setShowModal(true)
+  }
+
+  async function handleDelete(item: Promotion) {
+    if (!confirm(`Xóa chương trình KM ${item.name}?`)) return
+    try {
+      await fetch(`/api/promotions/${item.id}`, { method: 'DELETE' })
+    } catch { }
+    const res = await fetch('/api/promotions').then(r => r.json())
+    setData(Array.isArray(res) ? res : res.data || [])
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      const url = editingItem ? `/api/promotions/${editingItem.id}` : '/api/promotions'
+      await fetch(url, {
+        method: editingItem ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: formCode,
+          name: formName,
+          type: formType,
+          value: parseFloat(formValue) || 0,
+          startDate: formStartDate,
+          endDate: formEndDate,
+          status: formStatus,
+        }),
+      })
+      setShowModal(false)
+      setEditingItem(null)
+      const res = await fetch('/api/promotions').then(r => r.json())
+      setData(Array.isArray(res) ? res : res.data || [])
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
-    <div className="animate-fade-in">
+    <PageGuard permission="promotions:read">
+      <div className="animate-fade-in">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-zinc-900">Chương Trình Khuyến Mãi</h1>
         <p className="text-zinc-500 text-sm">Quản lý các chương trình khuyến mãi, giảm giá, voucher</p>
@@ -88,7 +161,9 @@ export default function PromotionsClient() {
               {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
-          <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800" onClick={() => setShowModal(true)}>+ Thêm chương trình KM</button>
+          <Can permission="promotions:write">
+            <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800" onClick={handleOpenModal}>+ Thêm chương trình KM</button>
+          </Can>
         </div>
       </div>
 
@@ -122,7 +197,12 @@ export default function PromotionsClient() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1 justify-center">
-                    <button className="px-2 py-1 text-xs border border-zinc-300 text-zinc-700 hover:bg-zinc-100">Sửa</button>
+                    <Can permission="promotions:write">
+                      <button className="px-2 py-1 text-xs border border-zinc-300 text-zinc-700 hover:bg-zinc-100" onClick={() => handleEdit(item)}>Sửa</button>
+                    </Can>
+                    <Can permission="promotions:delete">
+                      <button className="px-2 py-1 text-xs border border-red-300 text-red-700 hover:bg-red-100" onClick={() => handleDelete(item)}>Xóa</button>
+                    </Can>
                     <button className="px-2 py-1 text-xs border border-zinc-300 text-zinc-700 hover:bg-zinc-100">Xem</button>
                   </div>
                 </td>
@@ -152,45 +232,45 @@ export default function PromotionsClient() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setShowModal(false)}>
           <div className="bg-white border border-zinc-300 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
             <div className="border-b border-zinc-300 px-4 py-3 flex items-center justify-between">
-              <h2 className="font-semibold text-sm text-zinc-900">Thêm chương trình khuyến mãi</h2>
+              <h2 className="font-semibold text-sm text-zinc-900">{editingItem ? 'Sửa chương trình KM' : 'Thêm chương trình khuyến mãi'}</h2>
               <button className="text-zinc-400 hover:text-zinc-900 text-lg" onClick={() => setShowModal(false)}>×</button>
             </div>
             <div className="p-4 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Mã KM</label>
-                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Tự động" />
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Tự động" value={formCode} onChange={e => setFormCode(e.target.value)} />
                 </div>
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Tên</label>
-                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Tên chương trình" />
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Tên chương trình" value={formName} onChange={e => setFormName(e.target.value)} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Loại</label>
-                  <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none">
+                  <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formType} onChange={e => setFormType(e.target.value)}>
                     {Object.entries(typeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Giá trị</label>
-                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" type="number" placeholder="0" />
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" type="number" placeholder="0" value={formValue} onChange={e => setFormValue(e.target.value)} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Ngày bắt đầu</label>
-                  <input type="date" className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" />
+                  <input type="date" className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formStartDate} onChange={e => setFormStartDate(e.target.value)} />
                 </div>
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Ngày kết thúc</label>
-                  <input type="date" className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" />
+                  <input type="date" className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formEndDate} onChange={e => setFormEndDate(e.target.value)} />
                 </div>
               </div>
               <div>
                 <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
-                <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none">
+                <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formStatus} onChange={e => setFormStatus(e.target.value)}>
                   <option value="active">Đang áp dụng</option>
                   <option value="scheduled">Sắp diễn ra</option>
                 </select>
@@ -198,11 +278,12 @@ export default function PromotionsClient() {
             </div>
             <div className="border-t border-zinc-300 px-4 py-3 flex justify-end gap-2">
               <button className="px-4 py-2 border border-zinc-300 text-zinc-700 text-sm hover:bg-zinc-100" onClick={() => setShowModal(false)}>Hủy</button>
-              <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800">Lưu</button>
+              <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800 disabled:opacity-50" onClick={handleSubmit} disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu'}</button>
             </div>
           </div>
         </div>
       )}
     </div>
+    </PageGuard>
   )
 }

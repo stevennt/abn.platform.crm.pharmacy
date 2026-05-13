@@ -1,11 +1,27 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { PageGuard } from '@/components/PageGuard'
 
 interface Setting {
   key: string
   value: string
   description: string
+}
+
+const defaultSettingDescriptions: Record<string, string> = {
+  company_name: 'Tên công ty',
+  company_address: 'Địa chỉ công ty',
+  company_phone: 'Số điện thoại',
+  company_email: 'Email',
+  company_tax_code: 'Mã số thuế',
+  vat_rate: 'Thuế VAT mặc định (%)',
+  currency: 'Đơn vị tiền tệ',
+  low_stock_threshold: 'Ngưỡng tồn kho thấp',
+  expiry_warning_days: 'Cảnh báo hạn dùng (ngày)',
+  default_credit_limit: 'Hạn mức tín dụng mặc định',
+  enable_notifications: 'Bật thông báo',
+  auto_approve_orders: 'Tự động duyệt đơn hàng',
 }
 
 export default function SettingsClient() {
@@ -17,16 +33,21 @@ export default function SettingsClient() {
     fetch('/api/settings')
       .then(r => r.json())
       .then(res => {
-        const list: Setting[] = Array.isArray(res) ? res : res.data || []
+        const obj: Record<string, string> = typeof res === 'object' && !Array.isArray(res) ? res : {}
+        const list: Setting[] = Object.entries(obj).map(([key, value]) => ({
+          key,
+          value,
+          description: defaultSettingDescriptions[key] || key,
+        }))
         setData(list)
       })
   }, [])
 
   function handleSave(key: string) {
-    fetch(`/api/settings/${key}`, {
+    fetch('/api/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value: editValue }),
+      body: JSON.stringify({ [key]: editValue }),
     }).then(() => {
       setData(prev => prev.map(s => s.key === key ? { ...s, value: editValue } : s))
       setEditing(null)
@@ -49,7 +70,8 @@ export default function SettingsClient() {
   ]
 
   return (
-    <div className="animate-fade-in">
+    <PageGuard permission="settings:read">
+      <div className="animate-fade-in">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-zinc-900">Cài Đặt Hệ Thống</h1>
         <p className="text-zinc-500 text-sm">Quản lý cấu hình và thiết lập hệ thống</p>
@@ -100,5 +122,6 @@ export default function SettingsClient() {
         </table>
       </div>
     </div>
+    </PageGuard>
   )
 }

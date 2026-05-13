@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Can } from '@/components/Can'
 
 interface Customer {
   id: number
@@ -47,6 +48,17 @@ export default function CustomersClient() {
   const [stats, setStats] = useState({ total: 0, new: 0, active: 0, potential: 0 })
   const limit = 10
 
+  const [formCode, setFormCode] = useState('')
+  const [formName, setFormName] = useState('')
+  const [formType, setFormType] = useState('pharmacy')
+  const [formTaxCode, setFormTaxCode] = useState('')
+  const [formPhone, setFormPhone] = useState('')
+  const [formEmail, setFormEmail] = useState('')
+  const [formRegion, setFormRegion] = useState('north')
+  const [formCreditLimit, setFormCreditLimit] = useState('')
+  const [formStatus, setFormStatus] = useState('active')
+  const [saving, setSaving] = useState(false)
+
   useEffect(() => {
     fetch('/api/customers')
       .then(r => r.json())
@@ -81,6 +93,46 @@ export default function CustomersClient() {
     fetch(`/api/customers/${id}`, { method: 'DELETE' }).then(() => {
       setData(prev => prev.filter(c => c.id !== id))
     })
+  }
+
+  function handleOpenModal() {
+    setFormCode('')
+    setFormName('')
+    setFormType('pharmacy')
+    setFormTaxCode('')
+    setFormPhone('')
+    setFormEmail('')
+    setFormRegion('north')
+    setFormCreditLimit('')
+    setFormStatus('active')
+    setShowModal(true)
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      await fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: formCode,
+          name: formName,
+          type: formType,
+          taxCode: formTaxCode,
+          phone: formPhone,
+          email: formEmail,
+          region: formRegion,
+          creditLimit: parseFloat(formCreditLimit) || 0,
+          status: formStatus,
+        }),
+      })
+      setShowModal(false)
+      const res = await fetch('/api/customers').then(r => r.json())
+      setData(Array.isArray(res) ? res : res.data || [])
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -144,7 +196,9 @@ export default function CustomersClient() {
               {Object.entries(regionLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
-          <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800" onClick={() => setShowModal(true)}>+ Thêm khách hàng</button>
+          <Can permission="customers:write">
+            <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800" onClick={handleOpenModal}>+ Thêm khách hàng</button>
+          </Can>
         </div>
       </div>
 
@@ -185,8 +239,12 @@ export default function CustomersClient() {
                 <td className="px-4 py-3">
                   <div className="flex gap-1 justify-center">
                     <button className="px-2 py-1 text-xs border border-zinc-300 text-zinc-700 hover:bg-zinc-100">Xem</button>
-                    <button className="px-2 py-1 text-xs border border-zinc-300 text-zinc-700 hover:bg-zinc-100">Sửa</button>
-                    <button className="px-2 py-1 text-xs border border-red-300 text-red-700 hover:bg-red-50" onClick={() => handleDelete(item.id)}>Xóa</button>
+                    <Can permission="customers:write">
+                      <button className="px-2 py-1 text-xs border border-zinc-300 text-zinc-700 hover:bg-zinc-100">Sửa</button>
+                    </Can>
+                    <Can permission="customers:delete">
+                      <button className="px-2 py-1 text-xs border border-red-300 text-red-700 hover:bg-red-50" onClick={() => handleDelete(item.id)}>Xóa</button>
+                    </Can>
                   </div>
                 </td>
               </tr>
@@ -222,17 +280,17 @@ export default function CustomersClient() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Mã KH</label>
-                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Tự động" />
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Tự động" value={formCode} onChange={e => setFormCode(e.target.value)} />
                 </div>
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Tên khách hàng</label>
-                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Nhập tên" />
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Nhập tên" value={formName} onChange={e => setFormName(e.target.value)} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Loại KH</label>
-                  <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none">
+                  <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formType} onChange={e => setFormType(e.target.value)}>
                     <option value="pharmacy">Nhà thuốc</option>
                     <option value="hospital">Bệnh viện</option>
                     <option value="clinic">Phòng khám</option>
@@ -243,23 +301,23 @@ export default function CustomersClient() {
                 </div>
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">SĐT</label>
-                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Nhập SĐT" />
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Nhập SĐT" value={formPhone} onChange={e => setFormPhone(e.target.value)} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Email</label>
-                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Nhập email" />
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Nhập email" value={formEmail} onChange={e => setFormEmail(e.target.value)} />
                 </div>
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Mã số thuế</label>
-                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Nhập MST" />
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Nhập MST" value={formTaxCode} onChange={e => setFormTaxCode(e.target.value)} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Khu vực</label>
-                  <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none">
+                  <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formRegion} onChange={e => setFormRegion(e.target.value)}>
                     <option value="north">Miền Bắc</option>
                     <option value="central">Miền Trung</option>
                     <option value="south">Miền Nam</option>
@@ -268,12 +326,12 @@ export default function CustomersClient() {
                 </div>
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Hạn mức tín dụng</label>
-                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="0" type="number" />
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="0" type="number" value={formCreditLimit} onChange={e => setFormCreditLimit(e.target.value)} />
                 </div>
               </div>
               <div>
                 <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
-                <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none">
+                <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formStatus} onChange={e => setFormStatus(e.target.value)}>
                   <option value="active">Đang hoạt động</option>
                   <option value="inactive">Ngừng hoạt động</option>
                   <option value="potential">Tiềm năng</option>
@@ -282,7 +340,7 @@ export default function CustomersClient() {
             </div>
             <div className="border-t border-zinc-300 px-4 py-3 flex justify-end gap-2">
               <button className="px-4 py-2 border border-zinc-300 text-zinc-700 text-sm hover:bg-zinc-100" onClick={() => setShowModal(false)}>Hủy</button>
-              <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800">Lưu</button>
+              <button className="px-4 py-2 bg-zinc-900 text-white text-sm hover:bg-zinc-800 disabled:opacity-50" onClick={handleSubmit} disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu'}</button>
             </div>
           </div>
         </div>
