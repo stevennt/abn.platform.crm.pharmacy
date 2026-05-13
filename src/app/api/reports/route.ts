@@ -4,8 +4,8 @@ import { authorize } from '@/lib/authorize'
 
 export async function GET(request: Request) {
   try {
-    const auth = await authorize('reports:read')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('reports:read')
+    if (authErr) return authErr
     const { searchParams } = new URL(request.url)
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
@@ -25,12 +25,12 @@ export async function GET(request: Request) {
       totalStats,
       inventoryStats,
     ] = await Promise.all([
-      getRevenueByMonth(dateFilter),
-      getTopProducts(dateFilter),
-      getCustomerTypeStats(),
-      getOrderStatusStats(dateFilter),
-      getTotalStats(dateFilter),
-      getInventoryStats(),
+      getRevenueByMonth(pharmacyId, dateFilter),
+      getTopProducts(pharmacyId, dateFilter),
+      getCustomerTypeStats(pharmacyId),
+      getOrderStatusStats(pharmacyId, dateFilter),
+      getTotalStats(pharmacyId, dateFilter),
+      getInventoryStats(pharmacyId),
     ])
 
     return NextResponse.json({
@@ -46,9 +46,9 @@ export async function GET(request: Request) {
   }
 }
 
-async function getRevenueByMonth(dateFilter: any) {
+async function getRevenueByMonth(pharmacyId: number, dateFilter: any) {
   const orders = await prisma.salesOrder.findMany({
-    where: { ...dateFilter, status: { not: 'cancelled' } },
+    where: { pharmacyId, ...dateFilter, status: { not: 'cancelled' } },
     select: { totalAmount: true, orderDate: true },
   })
 
@@ -63,8 +63,8 @@ async function getRevenueByMonth(dateFilter: any) {
     .map(([month, revenue]) => ({ month, revenue }))
 }
 
-async function getTopProducts(dateFilter: any) {
-  const where: any = {}
+async function getTopProducts(pharmacyId: number, dateFilter: any) {
+  const where: any = { pharmacyId }
   if (Object.keys(dateFilter).length > 0) {
     where.order = dateFilter
   }
@@ -89,18 +89,19 @@ async function getTopProducts(dateFilter: any) {
     .slice(0, 20)
 }
 
-async function getCustomerTypeStats() {
+async function getCustomerTypeStats(pharmacyId: number) {
   const customers = await prisma.customer.groupBy({
     by: ['type'],
+    where: { pharmacyId },
     _count: { id: true },
   })
   return customers.map((c) => ({ type: c.type, count: c._count.id }))
 }
 
-async function getOrderStatusStats(dateFilter: any) {
+async function getOrderStatusStats(pharmacyId: number, dateFilter: any) {
   const orders = await prisma.salesOrder.groupBy({
     by: ['status'],
-    where: dateFilter,
+    where: { pharmacyId, ...dateFilter },
     _count: { id: true },
     _sum: { totalAmount: true },
   })
@@ -111,13 +112,13 @@ async function getOrderStatusStats(dateFilter: any) {
   }))
 }
 
-async function getTotalStats(dateFilter: any) {
+async function getTotalStats(pharmacyId: number, dateFilter: any) {
   const [customerCount, productCount, totalOrders, revenueResult] = await Promise.all([
-    prisma.customer.count(),
-    prisma.product.count({ where: { status: 'active' } }),
-    prisma.salesOrder.count({ where: dateFilter }),
+    prisma.customer.count({ where: { pharmacyId } }),
+    prisma.product.count({ where: { pharmacyId, status: 'active' } }),
+    prisma.salesOrder.count({ where: { pharmacyId, ...dateFilter } }),
     prisma.salesOrder.aggregate({
-      where: { ...dateFilter, status: { not: 'cancelled' } },
+      where: { pharmacyId, ...dateFilter, status: { not: 'cancelled' } },
       _sum: { totalAmount: true },
     }),
   ])
@@ -130,12 +131,12 @@ async function getTotalStats(dateFilter: any) {
   }
 }
 
-async function getInventoryStats() {
+async function getInventoryStats(pharmacyId: number) {
   const [totalBatches, totalStock, expiringCount, lowStockCount] = await Promise.all([
-    prisma.stockBatch.count(),
-    prisma.stockBatch.aggregate({ _sum: { quantity: true } }),
+    prisma.stockBatch.count({ where: { pharmacyId } }),
+    prisma.stockBatch.aggregate({ where: { pharmacyId }, _sum: { quantity: true } }),
     prisma.stockBatch.count({
-      where: {
+      where: { pharmacyId,
         expiryDate: {
           lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         },
@@ -143,7 +144,7 @@ async function getInventoryStats() {
       },
     }),
     prisma.stockBatch.count({
-      where: { quantity: { lte: 0 }, status: { not: 'out-of-stock' } },
+      where: { pharmacyId, quantity: { lte: 0 }, status: { not: 'out-of-stock' } },
     }),
   ])
 

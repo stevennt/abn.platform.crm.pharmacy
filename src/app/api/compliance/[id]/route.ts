@@ -7,10 +7,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await authorize('compliance:read')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('compliance:read')
+    if (authErr) return authErr
     const { id } = await params
-    const record = await prisma.complianceRecord.findUnique({ where: { id: parseInt(id) } })
+    const record = await prisma.complianceRecord.findUnique({ where: { id: parseInt(id), pharmacyId } })
     if (!record) {
       return NextResponse.json({ error: 'Compliance record not found' }, { status: 404 })
     }
@@ -25,12 +25,12 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await authorize('compliance:write')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('compliance:write')
+    if (authErr) return authErr
     const { id } = await params
     const body = await request.json()
     const record = await prisma.complianceRecord.update({
-      where: { id: parseInt(id) },
+      where: { id: parseInt(id), pharmacyId },
       data: body,
     })
     return NextResponse.json(record)
@@ -47,10 +47,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await authorize('compliance:write')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('compliance:write')
+    if (authErr) return authErr
     const { id } = await params
-    await prisma.complianceRecord.delete({ where: { id: parseInt(id) } })
+    await prisma.complianceRecord.delete({ where: { id: parseInt(id), pharmacyId } })
     return NextResponse.json({ success: true })
   } catch (error: any) {
     if (error?.code === 'P2025') {

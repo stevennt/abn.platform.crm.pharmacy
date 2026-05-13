@@ -1,0 +1,27 @@
+All users share password: admin123
+
+=== Tenant 1: ABN Pharma (code: ABN) ===
+| Role              | Email                    | Name          |
+|-------------------|--------------------------|---------------|
+| admin             | admin@abn.com            | Quản Trị Hệ Thống |
+| warehouse         | warehouse@abn.com        | Nguyễn Văn A  |
+| sales             | sales@abn.com            | Trần Thị B    |
+| pharmacy-rep      | rep@abn.com              | Lê Văn C      |
+| accountant        | accountant@abn.com       | Phạm Thị D    |
+| ceo               | ceo@abn.com              | Hoàng Văn E   |
+| marketing-manager | marketing@abn.com        | Nguyễn Thị F  |
+| distribution      | distribution@abn.com     | Trần Văn G    |
+| customer-care     | customercare@abn.com     | Lý Thị H      |
+
+=== Tenant 2: Mekong Pharma (code: MKP) ===
+| Role              | Email                    | Name          |
+|-------------------|--------------------------|---------------|
+| admin             | admin@mkp.com            | Quản Trị Hệ Thống |
+| warehouse         | warehouse@mkp.com        | Nguyễn Văn A  |
+| sales             | sales@mkp.com            | Trần Thị B    |
+| pharmacy-rep      | rep@mkp.com              | Lê Văn C      |
+| accountant        | accountant@mkp.com       | Phạm Thị D    |
+| ceo               | ceo@mkp.com              | Hoàng Văn E   |
+| marketing-manager | marketing@mkp.com        | Nguyễn Thị F  |
+| distribution      | distribution@mkp.com     | Trần Văn G    |
+| customer-care     | customercare@mkp.com     | Lý Thị H      |

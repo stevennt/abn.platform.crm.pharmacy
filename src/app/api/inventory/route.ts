@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authorize } from '@/lib/authorize'
+import { withTenant } from '@/lib/tenant'
 
 function calculateStatus(quantity: number, expiryDate: Date): string {
   const now = new Date()
@@ -16,8 +17,8 @@ function calculateStatus(quantity: number, expiryDate: Date): string {
 
 export async function GET(request: Request) {
   try {
-    const auth = await authorize('inventory:read')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('inventory:read')
+    if (authErr) return authErr
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '100')
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
     const expiring = searchParams.get('expiring')
     const skip = (page - 1) * limit
 
-    const where: any = {}
+    const where: any = withTenant(pharmacyId)
     if (warehouse) where.warehouse = warehouse
     if (status) where.status = status
     if (batch) where.batchNumber = { contains: batch }
@@ -63,8 +64,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const auth = await authorize('inventory:write')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('inventory:write')
+    if (authErr) return authErr
     const body = await request.json()
 
     const {
@@ -83,7 +84,7 @@ export async function POST(request: Request) {
     }
 
     const product = await prisma.product.findUnique({
-      where: { id: parseInt(productId) },
+      where: { id: parseInt(productId), pharmacyId },
     })
 
     if (!product) {
@@ -96,6 +97,7 @@ export async function POST(request: Request) {
     const result = await prisma.$transaction(async (tx) => {
       const stockBatch = await tx.stockBatch.create({
         data: {
+          pharmacyId,
           productId: parseInt(productId),
           batchNumber,
           expiryDate: expiry,
@@ -111,6 +113,7 @@ export async function POST(request: Request) {
 
       await tx.stockMovement.create({
         data: {
+          pharmacyId,
           type: 'in',
           productId: parseInt(productId),
           batchNumber,

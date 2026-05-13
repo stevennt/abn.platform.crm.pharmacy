@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authorize } from '@/lib/authorize'
+import { withTenant } from '@/lib/tenant'
 
 export async function GET(request: Request) {
   try {
-    const auth = await authorize('sales-team:read')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('sales-team:read')
+    if (authErr) return authErr
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
@@ -14,7 +15,7 @@ export async function GET(request: Request) {
     const territory = searchParams.get('territory')
     const skip = (page - 1) * limit
 
-    const where: any = {}
+    const where: any = withTenant(pharmacyId)
     if (role) {
       where.role = role
     } else {

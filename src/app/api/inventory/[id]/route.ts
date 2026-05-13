@@ -19,13 +19,13 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await authorize('inventory:write')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('inventory:write')
+    if (authErr) return authErr
     const { id } = await params
     const body = await request.json()
 
     const existingBatch = await prisma.stockBatch.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: parseInt(id), pharmacyId },
     })
 
     if (!existingBatch) {
@@ -46,7 +46,7 @@ export async function PUT(
     updateData.status = calculateStatus(checkQuantity, checkExpiry)
 
     const stockBatch = await prisma.stockBatch.update({
-      where: { id: parseInt(id) },
+      where: { id: parseInt(id), pharmacyId },
       data: updateData,
     })
 
@@ -64,10 +64,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await authorize('inventory:write')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('inventory:write')
+    if (authErr) return authErr
     const { id } = await params
-    await prisma.stockBatch.delete({ where: { id: parseInt(id) } })
+    await prisma.stockBatch.delete({ where: { id: parseInt(id), pharmacyId } })
     return NextResponse.json({ success: true })
   } catch (error: any) {
     if (error?.code === 'P2025') {

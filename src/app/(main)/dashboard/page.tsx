@@ -1,37 +1,43 @@
 import { prisma } from '@/lib/prisma'
-import { getEffectiveRole } from '@/lib/auth'
+import { getCurrentUser, getEffectiveRole } from '@/lib/auth'
 import DashboardClient from './DashboardClient'
 import CEODashboardClient from './CEODashboardClient'
 
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
+  const user = await getCurrentUser()
   const effectiveRole = await getEffectiveRole()
+  const pharmacyId = user?.pharmacyId ?? 0
 
   if (effectiveRole === 'ceo') {
     return <CEODashboardClient />
   }
 
   const [totalCustomers, totalProducts, totalOrders, recentOrders, expiringBatches] = await Promise.all([
-    prisma.customer.count(),
-    prisma.product.count(),
-    prisma.salesOrder.count(),
+    prisma.customer.count({ where: { pharmacyId } }),
+    prisma.product.count({ where: { pharmacyId } }),
+    prisma.salesOrder.count({ where: { pharmacyId } }),
     prisma.salesOrder.findMany({
+      where: { pharmacyId },
       take: 5,
       orderBy: { createdAt: 'desc' },
       include: { customer: true },
     }),
     prisma.stockBatch.findMany({
-      where: { status: 'expiring' },
+      where: { pharmacyId, status: 'expiring' },
       include: { product: true },
     }),
   ])
 
   const todayOrders = await prisma.salesOrder.count({
-    where: { orderDate: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
+    where: { pharmacyId, orderDate: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } },
   })
 
-  const totalRevenue = await prisma.salesOrder.aggregate({ _sum: { totalAmount: true } })
+  const totalRevenue = await prisma.salesOrder.aggregate({
+    where: { pharmacyId },
+    _sum: { totalAmount: true },
+  })
 
   return (
     <DashboardClient

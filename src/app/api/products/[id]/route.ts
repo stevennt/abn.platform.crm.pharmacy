@@ -7,11 +7,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await authorize('products:read')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('products:read')
+    if (authErr) return authErr
     const { id } = await params
     const product = await prisma.product.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: parseInt(id), pharmacyId },
       include: {
         stockBatches: true,
         priceLists: true,
@@ -31,12 +31,12 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await authorize('products:write')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('products:write')
+    if (authErr) return authErr
     const { id } = await params
     const body = await request.json()
     const product = await prisma.product.update({
-      where: { id: parseInt(id) },
+      where: { id: parseInt(id), pharmacyId },
       data: body,
     })
     return NextResponse.json(product)
@@ -53,10 +53,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await authorize('products:delete')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('products:delete')
+    if (authErr) return authErr
     const { id } = await params
-    await prisma.product.delete({ where: { id: parseInt(id) } })
+    await prisma.product.delete({ where: { id: parseInt(id), pharmacyId } })
     return NextResponse.json({ success: true })
   } catch (error: any) {
     if (error?.code === 'P2025') {

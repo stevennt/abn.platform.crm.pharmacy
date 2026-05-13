@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authorize } from '@/lib/authorize'
+import { withTenant } from '@/lib/tenant'
 
 export async function GET(request: Request) {
   try {
-    const auth = await authorize('users:read')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('users:read')
+    if (authErr) return authErr
     const { searchParams } = new URL(request.url)
     const q = searchParams.get('q') || ''
     const page = parseInt(searchParams.get('page') || '1')
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
     const territory = searchParams.get('territory')
     const skip = (page - 1) * limit
 
-    const where: any = {}
+    const where: any = withTenant(pharmacyId)
     if (q) {
       where.OR = [
         { code: { contains: q } },
@@ -61,12 +62,13 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const auth = await authorize('users:write')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('users:write')
+    if (authErr) return authErr
     const body = await request.json()
     const user = await prisma.user.create({
       data: {
         ...body,
+        pharmacyId,
         password: body.password || 'admin123',
       },
     })

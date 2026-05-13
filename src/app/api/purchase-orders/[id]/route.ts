@@ -7,11 +7,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await authorize('purchase-orders:read')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('purchase-orders:read')
+    if (authErr) return authErr
     const { id } = await params
     const order = await prisma.purchaseOrder.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: parseInt(id), pharmacyId },
       include: {
         createdBy: { select: { id: true, name: true, code: true } },
         items: { include: { product: true } },
@@ -31,17 +31,18 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await authorize('purchase-orders:write')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('purchase-orders:write')
+    if (authErr) return authErr
     const { id } = await params
     const body = await request.json()
     const { items, ...orderData } = body
 
     const updateData: any = { ...orderData }
     if (items) {
-      await prisma.purchaseOrderItem.deleteMany({ where: { purchaseOrderId: parseInt(id) } })
+      await prisma.purchaseOrderItem.deleteMany({ where: { purchaseOrderId: parseInt(id), pharmacyId } })
       updateData.items = {
         create: items.map((item: any) => ({
+          pharmacyId,
           productId: item.productId,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
@@ -51,7 +52,7 @@ export async function PUT(
     }
 
     const order = await prisma.purchaseOrder.update({
-      where: { id: parseInt(id) },
+      where: { id: parseInt(id), pharmacyId },
       data: updateData,
       include: {
         items: { include: { product: true } },
@@ -72,11 +73,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await authorize('purchase-orders:delete')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('purchase-orders:delete')
+    if (authErr) return authErr
     const { id } = await params
-    await prisma.purchaseOrderItem.deleteMany({ where: { purchaseOrderId: parseInt(id) } })
-    await prisma.purchaseOrder.delete({ where: { id: parseInt(id) } })
+    await prisma.purchaseOrderItem.deleteMany({ where: { purchaseOrderId: parseInt(id), pharmacyId } })
+    await prisma.purchaseOrder.delete({ where: { id: parseInt(id), pharmacyId } })
     return NextResponse.json({ success: true })
   } catch (error: any) {
     if (error?.code === 'P2025') {

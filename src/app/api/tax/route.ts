@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authorize } from '@/lib/authorize'
+import { withTenant } from '@/lib/tenant'
 
 export async function GET(request: Request) {
   try {
-    const auth = await authorize('tax:read')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('tax:read')
+    if (authErr) return authErr
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
     const status = searchParams.get('status')
     const skip = (page - 1) * limit
 
-    const where: any = {}
+    const where: any = withTenant(pharmacyId)
     if (type) where.type = type
     if (status) where.status = status
 
@@ -30,10 +31,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const auth = await authorize('tax:write')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('tax:write')
+    if (authErr) return authErr
     const body = await request.json()
-    const tax = await prisma.taxSetting.create({ data: body })
+    const tax = await prisma.taxSetting.create({ data: { ...body, pharmacyId } })
     return NextResponse.json(tax, { status: 201 })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create tax setting' }, { status: 500 })

@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authorize } from '@/lib/authorize'
+import { withTenant } from '@/lib/tenant'
 
 export async function GET(request: Request) {
   try {
-    const auth = await authorize('kpi:read')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('kpi:read')
+    if (authErr) return authErr
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
     const period = searchParams.get('period')
     const skip = (page - 1) * limit
 
-    const where: any = {}
+    const where: any = withTenant(pharmacyId)
     if (userId) where.userId = parseInt(userId)
     if (period) where.period = period
 
@@ -38,10 +39,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const auth = await authorize('kpi:write')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('kpi:write')
+    if (authErr) return authErr
     const body = await request.json()
-    const kpi = await prisma.kpi.create({ data: body })
+    const kpi = await prisma.kpi.create({ data: { ...body, pharmacyId } })
     return NextResponse.json(kpi, { status: 201 })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create KPI' }, { status: 500 })

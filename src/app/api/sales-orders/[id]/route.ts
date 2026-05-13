@@ -7,11 +7,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await authorize('sales-orders:read')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('sales-orders:read')
+    if (authErr) return authErr
     const { id } = await params
     const order = await prisma.salesOrder.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: parseInt(id), pharmacyId },
       include: {
         customer: true,
         salesPerson: { select: { id: true, name: true, code: true } },
@@ -32,17 +32,18 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await authorize('sales-orders:write')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('sales-orders:write')
+    if (authErr) return authErr
     const { id } = await params
     const body = await request.json()
     const { items, ...orderData } = body
 
     const updateData: any = { ...orderData }
     if (items) {
-      await prisma.orderItem.deleteMany({ where: { orderId: parseInt(id) } })
+      await prisma.orderItem.deleteMany({ where: { orderId: parseInt(id), pharmacyId } })
       updateData.items = {
         create: items.map((item: any) => ({
+          pharmacyId,
           productId: item.productId,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
@@ -52,7 +53,7 @@ export async function PUT(
     }
 
     const order = await prisma.salesOrder.update({
-      where: { id: parseInt(id) },
+      where: { id: parseInt(id), pharmacyId },
       data: updateData,
       include: {
         customer: true,
@@ -74,11 +75,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await authorize('sales-orders:delete')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('sales-orders:delete')
+    if (authErr) return authErr
     const { id } = await params
-    await prisma.orderItem.deleteMany({ where: { orderId: parseInt(id) } })
-    await prisma.salesOrder.delete({ where: { id: parseInt(id) } })
+    await prisma.orderItem.deleteMany({ where: { orderId: parseInt(id), pharmacyId } })
+    await prisma.salesOrder.delete({ where: { id: parseInt(id), pharmacyId } })
     return NextResponse.json({ success: true })
   } catch (error: any) {
     if (error?.code === 'P2025') {

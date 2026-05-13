@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authorize } from '@/lib/authorize'
+import { withTenant } from '@/lib/tenant'
 
 export async function GET(request: Request) {
   try {
-    const auth = await authorize('promotions:read')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('promotions:read')
+    if (authErr) return authErr
     const { searchParams } = new URL(request.url)
     const q = searchParams.get('q') || ''
     const page = parseInt(searchParams.get('page') || '1')
@@ -14,7 +15,7 @@ export async function GET(request: Request) {
     const status = searchParams.get('status')
     const skip = (page - 1) * limit
 
-    const where: any = {}
+    const where: any = withTenant(pharmacyId)
     if (q) {
       where.OR = [
         { code: { contains: q } },
@@ -42,10 +43,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const auth = await authorize('promotions:write')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('promotions:write')
+    if (authErr) return authErr
     const body = await request.json()
-    const promotion = await prisma.promotion.create({ data: body })
+    const promotion = await prisma.promotion.create({ data: { ...body, pharmacyId } })
     return NextResponse.json(promotion, { status: 201 })
   } catch (error: any) {
     if (error?.code === 'P2002') {

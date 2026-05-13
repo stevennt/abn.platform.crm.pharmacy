@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authorize } from '@/lib/authorize'
+import { withTenant } from '@/lib/tenant'
 
 function calculateStatus(quantity: number, expiryDate: Date): string {
   const now = new Date()
@@ -16,8 +17,8 @@ function calculateStatus(quantity: number, expiryDate: Date): string {
 
 export async function GET(request: Request) {
   try {
-    const auth = await authorize('inventory:read')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('inventory:read')
+    if (authErr) return authErr
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
     const endDate = searchParams.get('endDate')
     const skip = (page - 1) * limit
 
-    const where: any = {}
+    const where: any = withTenant(pharmacyId)
     if (type) where.type = type
     if (productId) where.productId = parseInt(productId)
     if (fromWarehouse) where.fromWarehouse = fromWarehouse
@@ -59,8 +60,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const auth = await authorize('inventory:write')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('inventory:write')
+    if (authErr) return authErr
     const body = await request.json()
 
     const {
@@ -89,6 +90,7 @@ export async function POST(request: Request) {
       const result = await prisma.$transaction(async (tx) => {
         const fromBatch = await tx.stockBatch.findFirst({
           where: {
+            pharmacyId,
             productId: pid,
             batchNumber,
             warehouse: fromWarehouse,
@@ -105,7 +107,7 @@ export async function POST(request: Request) {
 
         const newFromQty = fromBatch.quantity - qty
         await tx.stockBatch.update({
-          where: { id: fromBatch.id },
+          where: { id: fromBatch.id, pharmacyId },
           data: {
             quantity: newFromQty,
             status: calculateStatus(newFromQty, fromBatch.expiryDate),
@@ -114,6 +116,7 @@ export async function POST(request: Request) {
 
         const toBatch = await tx.stockBatch.findFirst({
           where: {
+            pharmacyId,
             productId: pid,
             batchNumber,
             warehouse: toWarehouse,
@@ -123,7 +126,7 @@ export async function POST(request: Request) {
         if (toBatch) {
           const newToQty = toBatch.quantity + qty
           await tx.stockBatch.update({
-            where: { id: toBatch.id },
+            where: { id: toBatch.id, pharmacyId },
             data: {
               quantity: newToQty,
               status: calculateStatus(newToQty, toBatch.expiryDate),
@@ -132,6 +135,7 @@ export async function POST(request: Request) {
         } else {
           await tx.stockBatch.create({
             data: {
+              pharmacyId,
               productId: pid,
               batchNumber,
               expiryDate: fromBatch.expiryDate,
@@ -147,6 +151,7 @@ export async function POST(request: Request) {
 
         const movement = await tx.stockMovement.create({
           data: {
+            pharmacyId,
             type: 'transfer',
             productId: pid,
             batchNumber,
@@ -171,6 +176,7 @@ export async function POST(request: Request) {
       const result = await prisma.$transaction(async (tx) => {
         const batch = await tx.stockBatch.findFirst({
           where: {
+            pharmacyId,
             productId: pid,
             batchNumber,
             warehouse: usedWarehouse,
@@ -192,7 +198,7 @@ export async function POST(request: Request) {
         }
 
         await tx.stockBatch.update({
-          where: { id: batch.id },
+          where: { id: batch.id, pharmacyId },
           data: {
             quantity: newQty,
             status: calculateStatus(newQty, batch.expiryDate),
@@ -201,6 +207,7 @@ export async function POST(request: Request) {
 
         const movement = await tx.stockMovement.create({
           data: {
+            pharmacyId,
             type,
             productId: pid,
             batchNumber,
@@ -226,6 +233,7 @@ export async function POST(request: Request) {
       const result = await prisma.$transaction(async (tx) => {
         const batch = await tx.stockBatch.findFirst({
           where: {
+            pharmacyId,
             productId: pid,
             batchNumber,
             warehouse: usedWarehouse,
@@ -239,7 +247,7 @@ export async function POST(request: Request) {
         const adjustmentQty = newQuantity - batch.quantity
 
         await tx.stockBatch.update({
-          where: { id: batch.id },
+          where: { id: batch.id, pharmacyId },
           data: {
             quantity: newQuantity,
             status: calculateStatus(newQuantity, batch.expiryDate),
@@ -248,6 +256,7 @@ export async function POST(request: Request) {
 
         const movement = await tx.stockMovement.create({
           data: {
+            pharmacyId,
             type: 'adjustment',
             productId: pid,
             batchNumber,

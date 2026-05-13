@@ -7,30 +7,62 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
+model Pharmacy {
   id        Int      @id @default(autoincrement())
-  code      String   @unique
   name      String
-  email     String   @unique
-  password  String
-  phone     String?
-  role      String   @default("sales") // admin, warehouse, sales, pharmacy-rep, accountant, distribution, customer-care, ceo, marketing-manager
-  department String?
-  position  String?
+  code      String   @unique
   status    String   @default("active")
-  territory String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  users          User[]
+  customers      Customer[]
+  products       Product[]
+  stockBatches   StockBatch[]
+  stockMovements StockMovement[]
+  salesOrders    SalesOrder[]
+  orderItems     OrderItem[]
+  purchaseOrders PurchaseOrder[]
+  purchaseOrderItems PurchaseOrderItem[]
+  distributors   Distributor[]
+  territories    Territory[]
+  kpis           Kpi[]
+  promotions     Promotion[]
+  priceLists     PriceList[]
+  complianceRecords ComplianceRecord[]
+  taxSettings    TaxSetting[]
+  settings       Setting[]
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  pharmacyId Int
+  code       String
+  name       String
+  email      String   @unique
+  password   String
+  phone      String?
+  role       String   @default("sales") // admin, warehouse, sales, pharmacy-rep, accountant, distribution, customer-care, ceo, marketing-manager
+  department String?
+  position   String?
+  status     String   @default("active")
+  territory  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  pharmacy      Pharmacy       @relation(fields: [pharmacyId], references: [id])
   salesOrders   SalesOrder[]
   purchaseOrders PurchaseOrder[]
   customers     Customer[]
   kpis          Kpi[]
+
+  @@unique([pharmacyId, code])
 }
 
 model Customer {
   id          Int      @id @default(autoincrement())
-  code        String   @unique
+  pharmacyId  Int
+  code        String
   name        String
   type        String   // pharmacy, hospital, clinic, distributor, wholesaler, retailer
   taxCode     String?
@@ -46,12 +78,16 @@ model Customer {
   salesPersonId Int?
   salesPerson   User?   @relation(fields: [salesPersonId], references: [id])
 
+  pharmacy    Pharmacy     @relation(fields: [pharmacyId], references: [id])
   salesOrders SalesOrder[]
+
+  @@unique([pharmacyId, code])
 }
 
 model Product {
   id               Int      @id @default(autoincrement())
-  code             String   @unique
+  pharmacyId       Int
+  code             String
   name             String
   activeIngredient String?
   category         String   // prescription, otc, supplement, medical-device, consumable
@@ -64,15 +100,19 @@ model Product {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  stockBatches     StockBatch[]
-  stockMovements   StockMovement[]
-  orderItems       OrderItem[]
+  pharmacy           Pharmacy              @relation(fields: [pharmacyId], references: [id])
+  stockBatches       StockBatch[]
+  stockMovements     StockMovement[]
+  orderItems         OrderItem[]
   purchaseOrderItems PurchaseOrderItem[]
-  priceLists       PriceList[]
+  priceLists         PriceList[]
+
+  @@unique([pharmacyId, code])
 }
 
 model StockBatch {
   id          Int      @id @default(autoincrement())
+  pharmacyId  Int
   productId   Int
   batchNumber String
   expiryDate  DateTime
@@ -85,11 +125,13 @@ model StockBatch {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  product Product @relation(fields: [productId], references: [id])
+  pharmacy Pharmacy @relation(fields: [pharmacyId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id])
 }
 
 model StockMovement {
   id          Int      @id @default(autoincrement())
+  pharmacyId  Int
   date        DateTime @default(now())
   type        String   // in, out, transfer, adjustment
   productId   Int
@@ -103,12 +145,14 @@ model StockMovement {
   createdBy   String?
   createdAt   DateTime @default(now())
 
-  product Product @relation(fields: [productId], references: [id])
+  pharmacy Pharmacy @relation(fields: [pharmacyId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id])
 }
 
 model SalesOrder {
   id          Int      @id @default(autoincrement())
-  code        String   @unique
+  pharmacyId  Int
+  code        String
   customerId  Int
   salesPersonId Int?
   orderDate   DateTime @default(now())
@@ -119,26 +163,32 @@ model SalesOrder {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  pharmacy    Pharmacy     @relation(fields: [pharmacyId], references: [id])
   customer    Customer     @relation(fields: [customerId], references: [id])
   salesPerson User?        @relation(fields: [salesPersonId], references: [id])
   items       OrderItem[]
+
+  @@unique([pharmacyId, code])
 }
 
 model OrderItem {
-  id        Int    @id @default(autoincrement())
-  orderId   Int
-  productId Int
-  quantity  Int
-  unitPrice Float
+  id         Int    @id @default(autoincrement())
+  pharmacyId Int
+  orderId    Int
+  productId  Int
+  quantity   Int
+  unitPrice  Float
   totalPrice Float
 
-  order   SalesOrder @relation(fields: [orderId], references: [id])
-  product Product     @relation(fields: [productId], references: [id])
+  pharmacy Pharmacy   @relation(fields: [pharmacyId], references: [id])
+  order    SalesOrder @relation(fields: [orderId], references: [id])
+  product  Product    @relation(fields: [productId], references: [id])
 }
 
 model PurchaseOrder {
   id          Int      @id @default(autoincrement())
-  code        String   @unique
+  pharmacyId  Int
+  code        String
   supplierName String
   supplierId  String?
   orderDate   DateTime @default(now())
@@ -151,25 +201,31 @@ model PurchaseOrder {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  createdBy User?                  @relation(fields: [createdById], references: [id])
+  pharmacy  Pharmacy             @relation(fields: [pharmacyId], references: [id])
+  createdBy User?                @relation(fields: [createdById], references: [id])
   items     PurchaseOrderItem[]
+
+  @@unique([pharmacyId, code])
 }
 
 model PurchaseOrderItem {
-  id           Int    @id @default(autoincrement())
+  id              Int    @id @default(autoincrement())
+  pharmacyId      Int
   purchaseOrderId Int
-  productId    Int
-  quantity     Int
-  unitPrice    Float
-  totalPrice   Float
+  productId       Int
+  quantity        Int
+  unitPrice       Float
+  totalPrice      Float
 
+  pharmacy      Pharmacy      @relation(fields: [pharmacyId], references: [id])
   purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
   product       Product       @relation(fields: [productId], references: [id])
 }
 
 model Distributor {
   id           Int      @id @default(autoincrement())
-  code         String   @unique
+  pharmacyId   Int
+  code         String
   name         String
   type         String   // exclusive, non-exclusive
   region       String?  // north, central, south
@@ -180,10 +236,15 @@ model Distributor {
   notes        String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  pharmacy Pharmacy @relation(fields: [pharmacyId], references: [id])
+
+  @@unique([pharmacyId, code])
 }
 
 model Territory {
   id          Int      @id @default(autoincrement())
+  pharmacyId  Int
   name        String
   managerId   Int?
   customerCount Int    @default(0)
@@ -191,10 +252,13 @@ model Territory {
   potential   String   @default("medium")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  pharmacy Pharmacy @relation(fields: [pharmacyId], references: [id])
 }
 
 model Kpi {
   id            Int      @id @default(autoincrement())
+  pharmacyId    Int
   userId        Int
   period        String   // monthly, quarterly, yearly
   revenueTarget Float    @default(0)
@@ -209,12 +273,14 @@ model Kpi {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+  pharmacy Pharmacy @relation(fields: [pharmacyId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
 }
 
 model Promotion {
   id          Int      @id @default(autoincrement())
-  code        String   @unique
+  pharmacyId  Int
+  code        String
   name        String
   type        String   // discount, combo, campaign
   value       Float
@@ -224,10 +290,15 @@ model Promotion {
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  pharmacy Pharmacy @relation(fields: [pharmacyId], references: [id])
+
+  @@unique([pharmacyId, code])
 }
 
 model PriceList {
   id        Int      @id @default(autoincrement())
+  pharmacyId Int
   name      String
   type      String   // wholesale, retail, special
   productId Int
@@ -238,11 +309,13 @@ model PriceList {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  product Product @relation(fields: [productId], references: [id])
+  pharmacy Pharmacy @relation(fields: [pharmacyId], references: [id])
+  product  Product  @relation(fields: [productId], references: [id])
 }
 
 model ComplianceRecord {
   id          Int      @id @default(autoincrement())
+  pharmacyId  Int
   type        String   // license, audit, regulatory-report
   title       String
   description String?
@@ -250,23 +323,33 @@ model ComplianceRecord {
   expiryDate  DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  pharmacy Pharmacy @relation(fields: [pharmacyId], references: [id])
 }
 
 model TaxSetting {
   id        Int      @id @default(autoincrement())
+  pharmacyId Int
   name      String
   rate      Float
   type      String   // vat, special, import
   status    String   @default("active")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  pharmacy Pharmacy @relation(fields: [pharmacyId], references: [id])
 }
 
 model Setting {
   id          Int      @id @default(autoincrement())
-  key         String   @unique
+  pharmacyId  Int
+  key         String
   value       String
   description String?
+
+  pharmacy Pharmacy @relation(fields: [pharmacyId], references: [id])
+
+  @@unique([pharmacyId, key])
 }
 
 model Lookup {

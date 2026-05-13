@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { authorize } from '@/lib/authorize'
+import { withTenant } from '@/lib/tenant'
 
 export async function GET(request: Request) {
   try {
-    const auth = await authorize('pricing:read')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('pricing:read')
+    if (authErr) return authErr
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
@@ -14,7 +15,7 @@ export async function GET(request: Request) {
     const productId = searchParams.get('productId')
     const skip = (page - 1) * limit
 
-    const where: any = {}
+    const where: any = withTenant(pharmacyId)
     if (type) where.type = type
     if (status) where.status = status
     if (productId) where.productId = parseInt(productId)
@@ -38,10 +39,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const auth = await authorize('pricing:write')
-    if (auth) return auth
+    const { error: authErr, pharmacyId } = await authorize('pricing:write')
+    if (authErr) return authErr
     const body = await request.json()
-    const priceList = await prisma.priceList.create({ data: body })
+    const priceList = await prisma.priceList.create({ data: { ...body, pharmacyId } })
     return NextResponse.json(priceList, { status: 201 })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create price list entry' }, { status: 500 })

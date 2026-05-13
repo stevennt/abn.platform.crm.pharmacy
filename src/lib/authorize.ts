@@ -32,18 +32,18 @@ export async function getPermissionsForRole(role: string): Promise<string[]> {
   return perms
 }
 
-export async function authorize(permission: string) {
+export async function authorize(permission: string): Promise<{ error: null; pharmacyId: number } | { error: NextResponse; pharmacyId: null }> {
   const user = await getCurrentUser()
   if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }), pharmacyId: null }
   }
 
   const effectiveRole = await getEffectiveRole()
   const rolePermissions = await getPermissionMap()
   const allowedRoles = rolePermissions[permission] || rolePermissions['*']
   if (!allowedRoles?.includes(effectiveRole as Role)) {
-    return NextResponse.json({ error: 'Forbidden: insufficient permissions' }, { status: 403 })
+    return { error: NextResponse.json({ error: 'Forbidden: insufficient permissions' }, { status: 403 }), pharmacyId: null }
   }
 
-  return null
+  return { error: null, pharmacyId: user.pharmacyId }
 }
