@@ -6,22 +6,7 @@ import { PageGuard } from '@/components/PageGuard'
 interface Setting {
   key: string
   value: string
-  description: string
-}
-
-const defaultSettingDescriptions: Record<string, string> = {
-  company_name: 'Tên công ty',
-  company_address: 'Địa chỉ công ty',
-  company_phone: 'Số điện thoại',
-  company_email: 'Email',
-  company_tax_code: 'Mã số thuế',
-  vat_rate: 'Thuế VAT mặc định (%)',
-  currency: 'Đơn vị tiền tệ',
-  low_stock_threshold: 'Ngưỡng tồn kho thấp',
-  expiry_warning_days: 'Cảnh báo hạn dùng (ngày)',
-  default_credit_limit: 'Hạn mức tín dụng mặc định',
-  enable_notifications: 'Bật thông báo',
-  auto_approve_orders: 'Tự động duyệt đơn hàng',
+  description: string | null
 }
 
 export default function SettingsClient() {
@@ -33,13 +18,7 @@ export default function SettingsClient() {
     fetch('/api/settings')
       .then(r => r.json())
       .then(res => {
-        const obj: Record<string, string> = typeof res === 'object' && !Array.isArray(res) ? res : {}
-        const list: Setting[] = Object.entries(obj).map(([key, value]) => ({
-          key,
-          value,
-          description: defaultSettingDescriptions[key] || key,
-        }))
-        setData(list)
+        setData(res.settings || [])
       })
   }, [])
 

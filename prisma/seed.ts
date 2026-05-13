@@ -4,10 +4,33 @@ import bcrypt from 'bcryptjs'
 const prisma = new PrismaClient()
 
 async function main() {
+  // Clean up non-user data for idempotent re-seeding
+  await prisma.rolePermission.deleteMany()
+  await prisma.navigationItem.deleteMany()
+  await prisma.setting.deleteMany()
+  await prisma.lookup.deleteMany()
+  await prisma.kpi.deleteMany()
+  await prisma.complianceRecord.deleteMany()
+  await prisma.taxSetting.deleteMany()
+  await prisma.promotion.deleteMany()
+  await prisma.priceList.deleteMany()
+  await prisma.stockMovement.deleteMany()
+  await prisma.purchaseOrderItem.deleteMany()
+  await prisma.purchaseOrder.deleteMany()
+  await prisma.orderItem.deleteMany()
+  await prisma.salesOrder.deleteMany()
+  await prisma.stockBatch.deleteMany()
+  await prisma.product.deleteMany()
+  await prisma.distributor.deleteMany()
+  await prisma.territory.deleteMany()
+  await prisma.customer.deleteMany()
+
   const hashedPassword = await bcrypt.hash('admin123', 10)
   // Create admin user
-  await prisma.user.create({
-    data: {
+  await prisma.user.upsert({
+    where: { email: 'admin@pharmacrm.com' },
+    update: {},
+    create: {
       code: 'ADMIN001',
       name: 'Quản Trị Hệ Thống',
       email: 'admin@pharmacrm.com',
@@ -17,8 +40,10 @@ async function main() {
     },
   })
 
-  const warehouseManager = await prisma.user.create({
-    data: {
+  const warehouseManager = await prisma.user.upsert({
+    where: { email: 'warehouse@pharmacrm.com' },
+    update: {},
+    create: {
       code: 'NV001',
       name: 'Nguyễn Văn A',
       email: 'warehouse@pharmacrm.com',
@@ -30,8 +55,10 @@ async function main() {
     },
   })
 
-  const salesManager = await prisma.user.create({
-    data: {
+  const salesManager = await prisma.user.upsert({
+    where: { email: 'sales@pharmacrm.com' },
+    update: {},
+    create: {
       code: 'NV002',
       name: 'Trần Thị B',
       email: 'sales@pharmacrm.com',
@@ -43,8 +70,10 @@ async function main() {
     },
   })
 
-  const pharmaRep = await prisma.user.create({
-    data: {
+  const pharmaRep = await prisma.user.upsert({
+    where: { email: 'rep@pharmacrm.com' },
+    update: {},
+    create: {
       code: 'NV003',
       name: 'Lê Văn C',
       email: 'rep@pharmacrm.com',
@@ -56,8 +85,10 @@ async function main() {
     },
   })
 
-  await prisma.user.create({
-    data: {
+  await prisma.user.upsert({
+    where: { email: 'accountant@pharmacrm.com' },
+    update: {},
+    create: {
       code: 'NV004',
       name: 'Phạm Thị D',
       email: 'accountant@pharmacrm.com',
@@ -69,8 +100,10 @@ async function main() {
     },
   })
 
-  await prisma.user.create({
-    data: {
+  await prisma.user.upsert({
+    where: { email: 'ceo@pharmacrm.com' },
+    update: {},
+    create: {
       code: 'NV005',
       name: 'Hoàng Văn E',
       email: 'ceo@pharmacrm.com',
@@ -82,8 +115,10 @@ async function main() {
     },
   })
 
-  await prisma.user.create({
-    data: {
+  await prisma.user.upsert({
+    where: { email: 'marketing@pharmacrm.com' },
+    update: {},
+    create: {
       code: 'NV006',
       name: 'Nguyễn Thị F',
       email: 'marketing@pharmacrm.com',
@@ -95,8 +130,10 @@ async function main() {
     },
   })
 
-  await prisma.user.create({
-    data: {
+  await prisma.user.upsert({
+    where: { email: 'distribution@pharmacrm.com' },
+    update: {},
+    create: {
       code: 'NV007',
       name: 'Trần Văn G',
       email: 'distribution@pharmacrm.com',
@@ -108,8 +145,10 @@ async function main() {
     },
   })
 
-  await prisma.user.create({
-    data: {
+  await prisma.user.upsert({
+    where: { email: 'customercare@pharmacrm.com' },
+    update: {},
+    create: {
       code: 'NV008',
       name: 'Lý Thị H',
       email: 'customercare@pharmacrm.com',
@@ -689,20 +728,50 @@ async function main() {
 
   // Seed settings defaults
   const defaultSettings = [
-    { key: 'company_name', value: 'ABN Pharma CRM' },
-    { key: 'vat_rate', value: '10' },
-    { key: 'currency', value: 'VND' },
-    { key: 'low_stock_threshold', value: '10' },
-    { key: 'expiry_warning_days', value: '30' },
-    { key: 'enable_notifications', value: 'true' },
-    { key: 'auto_approve_orders', value: 'false' },
+    { key: 'company_name', value: 'ABN Pharma CRM', description: 'Tên công ty' },
+    { key: 'company_address', value: '', description: 'Địa chỉ công ty' },
+    { key: 'company_phone', value: '', description: 'Số điện thoại' },
+    { key: 'company_email', value: '', description: 'Email' },
+    { key: 'company_tax_code', value: '', description: 'Mã số thuế' },
+    { key: 'vat_rate', value: '10', description: 'Thuế VAT mặc định (%)' },
+    { key: 'currency', value: 'VND', description: 'Đơn vị tiền tệ' },
+    { key: 'low_stock_threshold', value: '10', description: 'Ngưỡng tồn kho thấp' },
+    { key: 'expiry_warning_days', value: '30', description: 'Cảnh báo hạn dùng (ngày)' },
+    { key: 'default_credit_limit', value: '0', description: 'Hạn mức tín dụng mặc định' },
+    { key: 'enable_notifications', value: 'true', description: 'Bật thông báo' },
+    { key: 'auto_approve_orders', value: 'false', description: 'Tự động duyệt đơn hàng' },
   ]
 
   for (const setting of defaultSettings) {
     await prisma.setting.upsert({
       where: { key: setting.key },
-      update: { value: setting.value },
+      update: { value: setting.value, description: setting.description },
       create: setting,
+    })
+  }
+
+  // Seed navigation items
+  const navItemData = [
+    { href: '/dashboard', label: 'Dashboard', icon: '📊', permission: 'dashboard:read', sortOrder: 1 },
+    { href: '/customers', label: 'Quản Lý Khách Hàng', icon: '👥', permission: 'customers:read', sortOrder: 2 },
+    { href: '/products', label: 'Danh Mục Thuốc', icon: '💊', permission: 'products:read', sortOrder: 3 },
+    { href: '/inventory', label: 'Quản Lý Kho', icon: '🏭', permission: 'inventory:read', sortOrder: 4 },
+    { href: '/sales-orders', label: 'Đơn Hàng Bán', icon: '🛒', permission: 'sales-orders:read', sortOrder: 5 },
+    { href: '/purchase-orders', label: 'Đơn Hàng Mua', icon: '📄', permission: 'purchase-orders:read', sortOrder: 6 },
+    { href: '/distribution', label: 'Phân Phối - Đại Lý', icon: '🚚', permission: 'distribution:read', sortOrder: 7 },
+    { href: '/sales-team', label: 'Đội Ngũ Sales', icon: '👔', permission: 'sales-team:read', sortOrder: 8 },
+    { href: '/promotions', label: 'Chương Trình KM', icon: '🏷️', permission: 'promotions:read', sortOrder: 9 },
+    { href: '/pricing', label: 'Quản Lý Giá', icon: '💰', permission: 'pricing:read', sortOrder: 10 },
+    { href: '/compliance', label: 'Tuân Thủ Quy Định', icon: '🛡️', permission: 'compliance:read', sortOrder: 11 },
+    { href: '/reports', label: 'Báo Cáo & Phân Tích', icon: '📈', permission: 'reports:read', sortOrder: 12 },
+    { href: '/tax', label: 'Quản Lý Thuế', icon: '🧮', permission: 'tax:read', sortOrder: 13 },
+    { href: '/settings', label: 'Cài Đặt Hệ Thống', icon: '⚙️', permission: 'settings:read', sortOrder: 14 },
+  ]
+  for (const nav of navItemData) {
+    await prisma.navigationItem.upsert({
+      where: { href: nav.href },
+      update: { label: nav.label, icon: nav.icon, permission: nav.permission, sortOrder: nav.sortOrder, isActive: true },
+      create: nav,
     })
   }
 

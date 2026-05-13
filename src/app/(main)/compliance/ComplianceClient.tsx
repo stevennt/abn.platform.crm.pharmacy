@@ -262,8 +262,7 @@ export default function ComplianceClient() {
               <div>
                 <label className="text-xs text-zinc-500 mb-1 block">Trạng thái</label>
                 <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formStatus} onChange={e => setFormStatus(e.target.value)}>
-                  <option value="valid">Còn hiệu lực</option>
-                  <option value="pending">Chờ cấp</option>
+                  {getByCategory('compliance_status').map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                 </select>
               </div>
             </div>

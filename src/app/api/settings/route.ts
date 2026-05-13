@@ -6,12 +6,11 @@ export async function GET() {
   try {
     const auth = await authorize('settings:read')
     if (auth) return auth
-    const settings = await prisma.setting.findMany({ orderBy: { key: 'asc' } })
-    const result: Record<string, string> = {}
-    for (const s of settings) {
-      result[s.key] = s.value
-    }
-    return NextResponse.json(result)
+    const settings = await prisma.setting.findMany({
+      orderBy: { key: 'asc' },
+      select: { key: true, value: true, description: true },
+    })
+    return NextResponse.json({ settings })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch settings' }, { status: 500 })
   }

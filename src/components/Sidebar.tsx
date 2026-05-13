@@ -2,19 +2,35 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
-import { navItems as allNavItems } from '@/lib/permissions'
+import { useState, useEffect } from 'react'
+
+interface NavItem {
+  href: string
+  label: string
+  icon: string
+  permission: string
+  sortOrder: number
+  isActive: boolean
+}
 
 export default function Sidebar({ role, permissions }: { role: string; permissions: string[] }) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+  const [navItems, setNavItems] = useState<NavItem[]>([])
 
-  function can(_role: string, permission: string): boolean {
-    if (_role === 'admin') return true
+  useEffect(() => {
+    fetch('/api/navigation')
+      .then(r => r.json())
+      .then(data => setNavItems(data.navigation || []))
+      .catch(() => setNavItems([]))
+  }, [])
+
+  function can(permission: string): boolean {
+    if (role === 'admin') return true
     return permissions.includes(permission)
   }
 
-  const navItems = allNavItems.filter(item => can(role, item.permission))
+  const visibleItems = navItems.filter(item => can(item.permission))
 
   return (
     <aside className={`bg-white border-r border-zinc-300 flex flex-col transition-all ${collapsed ? 'w-16' : 'w-56'}`}>
@@ -31,7 +47,7 @@ export default function Sidebar({ role, permissions }: { role: string; permissio
       </div>
 
       <nav className="flex-1 overflow-y-auto py-2">
-        {navItems.map(item => {
+        {visibleItems.map(item => {
           const active = pathname === item.href
           return (
             <Link
