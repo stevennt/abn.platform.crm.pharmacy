@@ -3,11 +3,16 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
-import { navItems as allNavItems, can } from '@/lib/permissions'
+import { navItems as allNavItems } from '@/lib/permissions'
 
-export default function Sidebar({ role, permissions: _permissions }: { role: string; permissions: string[] }) {
+export default function Sidebar({ role, permissions }: { role: string; permissions: string[] }) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+
+  function can(_role: string, permission: string): boolean {
+    if (_role === 'admin') return true
+    return permissions.includes(permission)
+  }
 
   const navItems = allNavItems.filter(item => can(role, item.permission))
 

@@ -76,9 +76,48 @@ Append-only evidence log.
 - **Proves**: No hardcoded passwords visible in production login page
 - **Does NOT prove**: Users know how to log in without the credential list
 
-## DB-TRUTH-EV-010: Final Build + Lint
+## DB-TRUTH-EV-010: Final Build + Lint (Phase 1)
 - **When**: DB-TRUTH-TASK-023
 - **What**: `npm run build` + `npm run lint`
 - **Build output**: 27 pages, 35 API routes (2 new: lookups, lookups/[category]), Proxy middleware — compiled successfully
 - **Lint output**: 0 errors, 0 warnings
-- **Proves**: All changes compile cleanly without errors or warnings
+- **Proves**: Phase 1 changes compile cleanly
+
+## DB-TRUTH-EV-011: RolePermission API + Seed Created
+- **When**: DB-TRUTH-TASK-005, DB-TRUTH-TASK-024
+- **What**: Created `GET /api/role-permissions` and seeded 118 role permission rows
+- **API route**: `ƒ /api/role-permissions` in build output
+- **Seed data**: All 25 permission scopes × 1-9 roles each = 118 rows total
+- **Proves**: Permission data exists in DB and is queryable via API
+- **Does NOT prove**: authorize.ts uses this data instead of hardcoded matrix
+
+## DB-TRUTH-EV-012: authorize.ts Rewritten to Use DB
+- **When**: DB-TRUTH-TASK-019, DB-TRUTH-TASK-025
+- **What**: Replaced 54-line hardcoded `const rolePermissions = {...}` with DB-backed `loadPermissions()` function
+- **Cache strategy**: Module-level `cachedPermissions` variable loaded on first `getPermissionMap()` call
+- **Functions**: `loadPermissions()`, `getPermissionMap()`, `getPermissionsForRole(role)`, `authorize(permission)`
+- **Backward compatibility**: `authorize(permission)` returns same 401/403/Response patterns
+- **File**: `src/lib/authorize.ts`
+- **Proves**: Server-side permission checks are now DB-driven with zero hardcoded data
+- **Does NOT prove**: Client-side permission checks also use DB
+
+## DB-TRUTH-EV-013: permissions.ts + Sidebar + Context Rewritten
+- **When**: DB-TRUTH-TASK-020, DB-TRUTH-TASK-025, DB-TRUTH-TASK-026
+- **What**: Removed hardcoded matrix from `permissions.ts` (37 lines removed), updated all consumers
+- **Changes**:
+  - `permissions.ts`: removed `rolePermissions`, `can()`, `getUserPermissions()`, `getVisibleNavItems()` — kept `navItems[]` (UI config)
+  - `PermissionContext.tsx`: computes `can()` locally from `permissions[]` prop (passed from server layout via `getPermissionsForRole()`)
+  - `Sidebar.tsx`: local `can()` function using `permissions` prop instead of imported function
+  - `layout.tsx`: `getPermissionsForRole(role)` from authorize.ts (DB-backed)
+  - `auth/me/route.ts`: `getPermissionsForRole(role)` from authorize.ts (DB-backed)
+- **Proves**: Client-side permission checks are now DB-driven
+- **Does NOT prove**: Runtime behavior is identical (diff should show same logic, different data source)
+
+## DB-TRUTH-EV-014: Final Verification (Phase 2)
+- **When**: DB-TRUTH-TASK-026
+- **What**: Full build + lint + grep verification
+- **Build**: 28 pages, 36 API routes — compiled successfully
+- **Lint**: 0 errors, 0 warnings
+- **Grep**: `const rolePermissions` — 0 hardcoded occurrences (local variable `rolePermissions` in `loadPermissions()` body only)
+- **DB seeded**: 97 lookups + 7 settings + 118 role permissions = 222 total reference rows
+- **Proves**: All hardcoded data migrated to DB; build/lint clean

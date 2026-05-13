@@ -1,14 +1,14 @@
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import { getCurrentUser } from '@/lib/auth'
-import { getUserPermissions } from '@/lib/permissions'
+import { getPermissionsForRole } from '@/lib/authorize'
 import { PermissionProvider } from '@/hooks/PermissionContext'
 import { LookupProvider } from '@/hooks/useLookups'
 
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser()
   const role = user?.role ?? 'admin'
-  const permissions = getUserPermissions(role)
+  const permissions = await getPermissionsForRole(role)
 
   return (
     <PermissionProvider role={role} permissions={permissions}>

@@ -706,6 +706,70 @@ async function main() {
     })
   }
 
+  // Seed role permissions (derived from hardcoded matrix)
+  const rolePermissionData: { permission: string; role: string }[] = [
+    // admin can do everything — stored as individual rows for queryability
+    { permission: '*', role: 'admin' },
+    // dashboard
+    ...['admin', 'warehouse', 'sales', 'pharmacy-rep', 'accountant', 'distribution', 'customer-care', 'ceo', 'marketing-manager'].map(r => ({ permission: 'dashboard:read', role: r })),
+    // customers
+    ...['admin', 'warehouse', 'sales', 'pharmacy-rep', 'accountant', 'distribution', 'customer-care', 'ceo', 'marketing-manager'].map(r => ({ permission: 'customers:read', role: r })),
+    ...['admin', 'sales', 'pharmacy-rep'].map(r => ({ permission: 'customers:write', role: r })),
+    ...['admin'].map(r => ({ permission: 'customers:delete', role: r })),
+    // products
+    ...['admin', 'warehouse', 'sales', 'pharmacy-rep', 'accountant', 'ceo', 'marketing-manager'].map(r => ({ permission: 'products:read', role: r })),
+    ...['admin', 'warehouse'].map(r => ({ permission: 'products:write', role: r })),
+    ...['admin'].map(r => ({ permission: 'products:delete', role: r })),
+    // inventory
+    ...['admin', 'warehouse', 'sales', 'pharmacy-rep', 'ceo'].map(r => ({ permission: 'inventory:read', role: r })),
+    ...['admin', 'warehouse'].map(r => ({ permission: 'inventory:write', role: r })),
+    // sales-orders
+    ...['admin', 'sales', 'pharmacy-rep', 'accountant', 'ceo', 'marketing-manager'].map(r => ({ permission: 'sales-orders:read', role: r })),
+    ...['admin', 'sales', 'pharmacy-rep'].map(r => ({ permission: 'sales-orders:write', role: r })),
+    ...['admin'].map(r => ({ permission: 'sales-orders:delete', role: r })),
+    // purchase-orders
+    ...['admin', 'warehouse', 'accountant', 'ceo'].map(r => ({ permission: 'purchase-orders:read', role: r })),
+    ...['admin', 'warehouse'].map(r => ({ permission: 'purchase-orders:write', role: r })),
+    ...['admin'].map(r => ({ permission: 'purchase-orders:delete', role: r })),
+    // distribution
+    ...['admin', 'distribution', 'sales', 'ceo', 'marketing-manager'].map(r => ({ permission: 'distribution:read', role: r })),
+    ...['admin', 'distribution', 'marketing-manager'].map(r => ({ permission: 'distribution:write', role: r })),
+    // sales-team
+    ...['admin', 'sales', 'distribution', 'ceo'].map(r => ({ permission: 'sales-team:read', role: r })),
+    ...['admin', 'sales'].map(r => ({ permission: 'sales-team:write', role: r })),
+    // kpi
+    ...['admin', 'sales', 'pharmacy-rep', 'ceo'].map(r => ({ permission: 'kpi:read', role: r })),
+    ...['admin', 'sales'].map(r => ({ permission: 'kpi:write', role: r })),
+    // promotions
+    ...['admin', 'distribution', 'sales', 'ceo', 'marketing-manager'].map(r => ({ permission: 'promotions:read', role: r })),
+    ...['admin', 'distribution', 'marketing-manager'].map(r => ({ permission: 'promotions:write', role: r })),
+    // pricing
+    ...['admin', 'sales', 'warehouse', 'accountant', 'ceo', 'marketing-manager'].map(r => ({ permission: 'pricing:read', role: r })),
+    ...['admin', 'marketing-manager'].map(r => ({ permission: 'pricing:write', role: r })),
+    // compliance
+    ...['admin', 'warehouse', 'ceo'].map(r => ({ permission: 'compliance:read', role: r })),
+    ...['admin'].map(r => ({ permission: 'compliance:write', role: r })),
+    // reports
+    ...['admin', 'sales', 'warehouse', 'accountant', 'distribution', 'ceo', 'marketing-manager'].map(r => ({ permission: 'reports:read', role: r })),
+    // tax
+    ...['admin', 'accountant', 'ceo'].map(r => ({ permission: 'tax:read', role: r })),
+    ...['admin', 'accountant'].map(r => ({ permission: 'tax:write', role: r })),
+    // settings
+    ...['admin', 'ceo'].map(r => ({ permission: 'settings:read', role: r })),
+    ...['admin'].map(r => ({ permission: 'settings:write', role: r })),
+    // users
+    ...['admin', 'ceo', 'sales'].map(r => ({ permission: 'users:read', role: r })),
+    ...['admin', 'ceo', 'sales'].map(r => ({ permission: 'users:write', role: r })),
+  ]
+
+  for (const rp of rolePermissionData) {
+    await prisma.rolePermission.upsert({
+      where: { role_permission: { role: rp.role, permission: rp.permission } },
+      update: {},
+      create: rp,
+    })
+  }
+
   console.log('Seed data created successfully')
   console.log(` - ${customers.length} customers`)
   console.log(` - ${products.length} products`)
@@ -720,6 +784,7 @@ async function main() {
   console.log(' - 8 users (admin, warehouse, sales, pharmacy-rep, accountant, ceo, marketing, distribution, customer-care)')
   console.log(` - ${lookupData.length} lookup values`)
   console.log(` - ${defaultSettings.length} settings`)
+  console.log(` - ${rolePermissionData.length} role permissions`)
 }
 
 main()

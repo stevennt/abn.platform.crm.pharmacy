@@ -1,7 +1,6 @@
 'use client'
 
 import { createContext, useContext } from 'react'
-import { can } from '@/lib/permissions'
 
 interface PermissionContextValue {
   role: string
@@ -24,8 +23,13 @@ export function PermissionProvider({
   permissions: string[]
   children: React.ReactNode
 }) {
+  function check(permission: string): boolean {
+    if (role === 'admin') return true
+    return permissions.includes(permission)
+  }
+
   return (
-    <PermissionContext.Provider value={{ role, permissions, can: (p: string) => can(role, p) }}>
+    <PermissionContext.Provider value={{ role, permissions, can: check }}>
       {children}
     </PermissionContext.Provider>
   )

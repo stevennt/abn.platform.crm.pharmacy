@@ -1,61 +1,35 @@
 import { getCurrentUser } from './auth'
 import { NextResponse } from 'next/server'
+import { prisma } from './prisma'
 
 type Role = 'admin' | 'warehouse' | 'sales' | 'pharmacy-rep' | 'accountant' | 'distribution' | 'customer-care' | 'ceo' | 'marketing-manager'
 
-const rolePermissions: Record<string, Role[]> = {
-  // admin can do everything
-  '*': ['admin'],
-  // dashboard: everyone
-  'dashboard:read': ['admin', 'warehouse', 'sales', 'pharmacy-rep', 'accountant', 'distribution', 'customer-care', 'ceo', 'marketing-manager'],
-  // customers: sales, pharmacy-rep can write; others read
-  'customers:read': ['admin', 'warehouse', 'sales', 'pharmacy-rep', 'accountant', 'distribution', 'customer-care', 'ceo', 'marketing-manager'],
-  'customers:write': ['admin', 'sales', 'pharmacy-rep'],
-  'customers:delete': ['admin'],
-  // products: warehouse manages
-  'products:read': ['admin', 'warehouse', 'sales', 'pharmacy-rep', 'accountant', 'ceo', 'marketing-manager'],
-  'products:write': ['admin', 'warehouse'],
-  'products:delete': ['admin'],
-  // inventory: warehouse manages
-  'inventory:read': ['admin', 'warehouse', 'sales', 'pharmacy-rep', 'ceo'],
-  'inventory:write': ['admin', 'warehouse'],
-  // sales orders: sales manages
-  'sales-orders:read': ['admin', 'sales', 'pharmacy-rep', 'accountant', 'ceo', 'marketing-manager'],
-  'sales-orders:write': ['admin', 'sales', 'pharmacy-rep'],
-  'sales-orders:delete': ['admin'],
-  // purchase orders: warehouse manages
-  'purchase-orders:read': ['admin', 'warehouse', 'accountant', 'ceo'],
-  'purchase-orders:write': ['admin', 'warehouse'],
-  'purchase-orders:delete': ['admin'],
-  // distribution
-  'distribution:read': ['admin', 'distribution', 'sales', 'ceo', 'marketing-manager'],
-  'distribution:write': ['admin', 'distribution', 'marketing-manager'],
-  // sales team
-  'sales-team:read': ['admin', 'sales', 'distribution', 'ceo'],
-  'sales-team:write': ['admin', 'sales'],
-  // kpi
-  'kpi:read': ['admin', 'sales', 'pharmacy-rep', 'ceo'],
-  'kpi:write': ['admin', 'sales'],
-  // promotions
-  'promotions:read': ['admin', 'distribution', 'sales', 'ceo', 'marketing-manager'],
-  'promotions:write': ['admin', 'distribution', 'marketing-manager'],
-  // pricing
-  'pricing:read': ['admin', 'sales', 'warehouse', 'accountant', 'ceo', 'marketing-manager'],
-  'pricing:write': ['admin', 'marketing-manager'],
-  // compliance
-  'compliance:read': ['admin', 'warehouse', 'ceo'],
-  'compliance:write': ['admin'],
-  // reports
-  'reports:read': ['admin', 'sales', 'warehouse', 'accountant', 'distribution', 'ceo', 'marketing-manager'],
-  // tax
-  'tax:read': ['admin', 'accountant', 'ceo'],
-  'tax:write': ['admin', 'accountant'],
-  // settings
-  'settings:read': ['admin', 'ceo'],
-  'settings:write': ['admin'],
-  // users
-  'users:read': ['admin', 'ceo', 'sales'],
-  'users:write': ['admin', 'ceo', 'sales'],
+let cachedPermissions: Record<string, Role[]> | null = null
+
+async function loadPermissions(): Promise<Record<string, Role[]>> {
+  const rows = await prisma.rolePermission.findMany()
+  const map: Record<string, Role[]> = {}
+  for (const row of rows) {
+    if (!map[row.permission]) map[row.permission] = []
+    map[row.permission].push(row.role as Role)
+  }
+  cachedPermissions = map
+  return map
+}
+
+export async function getPermissionMap(): Promise<Record<string, Role[]>> {
+  return cachedPermissions ?? await loadPermissions()
+}
+
+export async function getPermissionsForRole(role: string): Promise<string[]> {
+  const map = await getPermissionMap()
+  const perms: string[] = []
+  for (const [perm, roles] of Object.entries(map)) {
+    if (roles.includes(role as Role)) {
+      perms.push(perm)
+    }
+  }
+  return perms
 }
 
 export async function authorize(permission: string) {
@@ -64,10 +38,11 @@ export async function authorize(permission: string) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const rolePermissions = await getPermissionMap()
   const allowedRoles = rolePermissions[permission] || rolePermissions['*']
   if (!allowedRoles?.includes(user.role as Role)) {
     return NextResponse.json({ error: 'Forbidden: insufficient permissions' }, { status: 403 })
   }
 
-  return null // null means authorized
+  return null
 }

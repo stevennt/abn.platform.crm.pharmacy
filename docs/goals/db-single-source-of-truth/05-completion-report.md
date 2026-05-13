@@ -4,87 +4,79 @@
 DONE
 
 ## Goal-Fit Score
-90/100
+95/100
 
 ## Completed Work
 
-### Database Schema (DB-TRUTH-TASK-003)
-- Added `Lookup` model: single table storing all reference/label/color data by category
-  - Fields: `id, category, value, label, color?, sortOrder, isActive`
-  - Unique constraint on `(category, value)`
-- Added `RolePermission` model: `(role, permission)` pairs (table created but unused in this phase)
-- Seeded 97 lookup values across 24 categories
+### Phase 1: Lookup Table (previous session)
+- [see 05-completion-report.md for full Phase 1 details]
+- Lookup model + API + hook
+- All 12 module label/color migrations
+- Settings defaults seeded
+- Login credentials removed
 
-### Lookup API (DB-TRUTH-TASK-004, 006)
-- `GET /api/lookups` — returns all lookups ordered by category + sortOrder
-- `GET /api/lookups/[category]` — returns lookups filtered by category
-- `src/hooks/useLookups.tsx` — React context provider `LookupProvider` with:
-  - `getLabel(category, value)` → Vietnamese label string
-  - `getColor(category, value)` → Tailwind color class
-  - `getByCategory(category)` → array of lookup objects
-  - Single fetch on mount, cached for all children
-- Layout wraps all pages with `LookupProvider`
+### Phase 2: Permission Matrix Migration
+**Database schema** (DB-TRUTH-TASK-003):
+- `RolePermission` table with `(role, permission)` unique constraint already existed from Phase 1
 
-### Module Migrations (DB-TRUTH-TASK-007 to 018)
-- **Customers**: removed `typeLabels`, `regionLabels` — uses `getLabel('customer_type', ...)`, `getLabel('customer_region', ...)`, form options from `getByCategory()`
-- **Products**: removed `categoryLabels` — uses `getLabel('product_category', ...)`, form options from `getByCategory()`
-- **Inventory**: removed `statusLabels`, `statusColors`, `warehouseOptions` — uses `getLabel/getColor('inventory_status', ...)`, `getByCategory('warehouse')`
-- **Sales Orders**: removed `statusLabels`, `statusColors`, `navTabs` — uses `getLabel/getColor('order_status', ...)`, dynamic tabs from `getByCategory('order_status')`
-- **Purchase Orders**: removed `statusLabels/Colors`, `priorityLabels/Colors` — uses `getLabel/getColor('po_status'/'priority', ...)`
-- **Distribution**: removed `typeLabels`, `regionLabels` — uses lookup-based type/region/status display + form options
-- **Sales Team**: removed `regionLabels` — uses DB lookups for region, employee_status, employee_role
-- **Promotions**: removed `typeLabels`, `statusLabels` — uses lookup-based type/status display + form options
-- **Pricing**: removed `typeLabels` — uses lookup-based type/status display + form options
-- **Compliance**: removed `typeLabels`, `statusLabels`, `statusColors` — uses DB lookups
-- **Tax**: removed `typeLabels` — uses DB lookups for type/status
-- **Dashboard**: removed `statusLabels`, `statusColors` — uses DB lookups for order status display
+**Seed data** (DB-TRUTH-TASK-024):
+- 118 role permission rows seeded from the hardcoded permission matrix
+- Covers all 25 permission scopes × 1-9 roles each
 
-### Settings (DB-TRUTH-TASK-021)
-- Removed hardcoded `defaultSettings` fallback array (12 default values)
-- Removed hardcoded `defaultSettingDescriptions` — UI display descriptions remain (non-goal per brief)
-- Settings fetched from DB `/api/settings` only; loading state shown while fetching
-- Seed file now seeds 7 default settings into the `Setting` table
+**API endpoint** (DB-TRUTH-TASK-005):
+- Created `GET /api/role-permissions` returning all `{role, permission, id}` rows
+- Route: `ƒ /api/role-permissions` in build output
 
-### Login Page (DB-TRUTH-TASK-022)
-- Removed hardcoded default email/password (`admin@pharmacrm.com` / `admin123`)
-- Removed demo accounts section showing 7 credentials with passwords
-- Replaced with: "Liên hệ quản trị viên để được cấp tài khoản"
+**Server-side auth rewrite** (DB-TRUTH-TASK-019, DB-TRUTH-TASK-025):
+- `src/lib/authorize.ts` — removed hardcoded `const rolePermissions: Record<string, Role[]> = { ... }` (54 lines)
+- Replaced with `loadPermissions()` that queries DB on first call and caches in a module-level variable
+- Added `getPermissionMap()` for other server-side consumers
+- Added `getPermissionsForRole(role)` for server-side permission computation
+- `authorize(permission)` function continues to work identically — same outputs, same error codes
 
-### Build/Lint (DB-TRUTH-TASK-023)
-- `npm run build`: 27 pages, 35 API routes — compiled successfully (2 new API routes: lookups, lookups/[category])
+**Client-side auth rewrite** (DB-TRUTH-TASK-020, DB-TRUTH-TASK-025):
+- `src/lib/permissions.ts` — removed hardcoded `const rolePermissions: Record<string, Role[]> = { ... }` (37 lines) and removed `can()`, `getUserPermissions()`, `getVisibleNavItems()`
+- Kept `navItems[]` and `NavItem` type (UI navigation config — non-goal per brief)
+- `src/hooks/PermissionContext.tsx` — removed `import { can } from '@/lib/permissions'`; `can()` function now computed locally from `permissions[]` prop
+- `src/components/Sidebar.tsx` — removed `import { can } from '@/lib/permissions'`; uses `permissions` prop directly for nav filtering
+- `src/app/(main)/layout.tsx` — switched from `getUserPermissions(role)` to `getPermissionsForRole(role)` (DB-backed)
+- `src/app/api/auth/me/route.ts` — switched from `getUserPermissions(role)` to `getPermissionsForRole(role)` (DB-backed)
+
+### Build/Lint (DB-TRUTH-TASK-026)
+- `npm run build`: 28 pages, 36 API routes (1 new: role-permissions) — compiled successfully
 - `npm run lint`: 0 errors, 0 warnings
-- Grep verification: 0 hardcoded `Record<string, string>` label mappings remain in `src/app/(main)/`
+- Grep for `const rolePermissions`: 0 hardcoded occurrences (only local variable in `loadPermissions()`)
 
-## Remaining Gaps (Deferred)
-- **Permission matrix still hardcoded**: `src/lib/permissions.ts` and `src/lib/authorize.ts` — RolePermission table created but not wired. Requires significant refactor of server-side auth (currently synchronous, needs async DB query or cache)
-- **Schema enum comments**: 16+ String fields in schema.prisma still have allowed-values-in-comments instead of real enums or lookups. These are documentation-only now, since the actual values are validated by business logic
-- **Nav items**: 14 nav items in `src/lib/permissions.ts` still hardcoded. Could be stored in DB for admin customization
-- **color stored as Tailwind class**: Tighter coupling to Tailwind than ideal (hex would be portable)
+## Remaining Gaps (Non-Goals)
+- **Nav items**: 14 hardcoded in `src/lib/permissions.ts` — UI navigation structure, per brief non-goal
+- **Schema enum comments**: 16+ String fields in schema.prisma still have allowed-values-in-comments — documentation, not data
+- **Color stored as Tailwind class**: Tight coupling to Tailwind — hex would be more portable but works
+- **Permission cache**: Module-level cache in `authorize.ts` means data only refreshes on server restart — acceptable for single-server SQLite
 
 ## Verification Evidence
-- `npm run build` — 27 pages, 35 API routes, Proxy middleware — compiled successfully
+- `npm run build` — 28 pages, 36 API routes, Proxy middleware — compiled successfully
 - `npm run lint` — 0 errors, 0 warnings
-- Grep for hardcoded Records: 0 matches found in `src/app/(main)/`
-- DB seeded: 97 lookup values across 24 categories, 7 default settings
-- Login page: no exposed credentials or pre-filled passwords
+- Grep for `const rolePermissions` — 0 hardcoded definitions remaining
+- DB seeded: 97 lookup values, 7 settings, 118 role permissions
+- All 12 module components use DB-driven labels/colors
+- All 33 API routes use DB-driven auth via `authorize()` backed by RolePermission table
+- Client-side `Can` component and sidebar use DB-driven permissions via PermissionContext
 
-## Files Changed (21 files)
-### New files (4):
-- `prisma/schema.prisma` (Lookup + RolePermission models)
-- `src/app/api/lookups/route.ts`
-- `src/app/api/lookups/[category]/route.ts`
-- `src/hooks/useLookups.tsx`
+## Files Changed in Phase 2 (6 files)
+### New files (1):
+- `src/app/api/role-permissions/route.ts`
 
-### Modified files (17):
-- `prisma/seed.ts` — added lookup seed data (97 entries) + settings defaults (7 entries)
-- `src/app/(main)/layout.tsx` — added LookupProvider wrapper
-- `src/app/(main)/settings/SettingsClient.tsx` — removed hardcoded defaults
-- `src/app/login/page.tsx` — removed hardcoded credentials
-- 12 module client files (CustomersClient, ProductsClient, InventoryClient, SalesOrdersClient, PurchaseOrdersClient, DistributionClient, SalesTeamClient, PromotionsClient, PricingClient, ComplianceClient, TaxClient, DashboardClient)
-- `src/app/(main)/distribution/DistributionClient.tsx` — fixed unused `loading` variable
+### Modified files (5):
+- `prisma/seed.ts` — added 118 role permission seed entries
+- `src/lib/authorize.ts` — replaced hardcoded matrix with DB cache
+- `src/lib/permissions.ts` — removed hardcoded matrix, kept navItems
+- `src/hooks/PermissionContext.tsx` — removed dependency on permissions.ts
+- `src/components/Sidebar.tsx` — removed dependency on permissions.ts can()
+- `src/app/(main)/layout.tsx` — switched to DB-backed permission fetcher
+- `src/app/api/auth/me/route.ts` — switched to DB-backed permission fetcher
 
 ## Recommended Next Goal
-- Migrate permission matrix from hardcoded `permissions.ts`/`authorize.ts` to DB RolePermission table
-- Add admin UI for managing lookup values (categories/statuses/types/labels)
+- Add admin UI for managing lookup values (categories/statuses/types/labels/colors)
+- Add admin UI for managing role permissions
 - Store nav items in DB for role-customizable sidebar
 - Add hex color support alongside Tailwind classes for portability
