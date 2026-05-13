@@ -91,6 +91,29 @@ export async function GET() {
       })
     )
 
+    // Monthly time-series for last 12 months
+    const monthlyLabels: string[] = []
+    const monthlyRevenueData: { month: string; revenue: number }[] = []
+    const monthlyOrdersData: { month: string; count: number }[] = []
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const monthLabel = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      monthlyLabels.push(monthLabel)
+      const startDate = new Date(d.getFullYear(), d.getMonth(), 1)
+      const endDate = new Date(d.getFullYear(), d.getMonth() + 1, 1)
+      const [rev, cnt] = await Promise.all([
+        prisma.salesOrder.aggregate({
+          where: { orderDate: { gte: startDate, lt: endDate }, status: { not: 'cancelled' } },
+          _sum: { totalAmount: true },
+        }),
+        prisma.salesOrder.count({
+          where: { orderDate: { gte: startDate, lt: endDate } },
+        }),
+      ])
+      monthlyRevenueData.push({ month: monthLabel, revenue: rev._sum.totalAmount || 0 })
+      monthlyOrdersData.push({ month: monthLabel, count: cnt })
+    }
+
     return NextResponse.json({
       totalCustomers,
       totalProducts,
@@ -114,6 +137,8 @@ export async function GET() {
         type: c.type,
         count: c._count.id,
       })),
+      monthlyRevenue: monthlyRevenueData,
+      monthlyOrderTrend: monthlyOrdersData,
     })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch dashboard stats' }, { status: 500 })
