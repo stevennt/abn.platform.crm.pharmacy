@@ -26,7 +26,10 @@ export async function getCurrentUser() {
   try {
     const decoded = Buffer.from(token.value, 'base64').toString()
     const userId = parseInt(decoded.split(':')[0])
-    const user = await prisma.user.findUnique({ where: { id: userId } })
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { pharmacy: { select: { name: true } } },
+    })
     return user
   } catch {
     return null

@@ -8,6 +8,7 @@ interface HeaderProps {
   switchedRole: string | null
   userName: string
   userRole: string
+  pharmacyName?: string
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -24,7 +25,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 const ALL_ROLES = Object.keys(ROLE_LABELS)
 
-export default function Header({ actualRole, switchedRole, userName, userRole }: HeaderProps) {
+export default function Header({ actualRole, switchedRole, userName, userRole, pharmacyName }: HeaderProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const isCEO = actualRole === 'ceo'
@@ -43,7 +44,7 @@ export default function Header({ actualRole, switchedRole, userName, userRole }:
         body: JSON.stringify({ role }),
       })
     }
-    router.refresh()
+    router.push('/dashboard')
   }
 
   return (
@@ -60,7 +61,7 @@ export default function Header({ actualRole, switchedRole, userName, userRole }:
       <div className="flex items-center gap-3">
         <div className="text-xs text-zinc-500 text-right leading-tight hidden sm:block">
           <div className="text-zinc-900 font-medium">{userName}</div>
-          <div className="text-zinc-400">{ROLE_LABELS[userRole] || userRole}</div>
+          <div className="text-zinc-400">{pharmacyName && <>{pharmacyName} · </>}{ROLE_LABELS[userRole] || userRole}</div>
         </div>
         {isCEO && (
           <div className="relative">

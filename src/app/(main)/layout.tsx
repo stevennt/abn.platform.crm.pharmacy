@@ -18,7 +18,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         <div className="flex h-screen">
           <Sidebar role={effectiveRole} permissions={permissions} />
           <div className="flex-1 flex flex-col overflow-hidden">
-            <Header actualRole={actualRole} switchedRole={switchedRole} userName={user?.name ?? ''} userRole={actualRole} />
+            <Header actualRole={actualRole} switchedRole={switchedRole} userName={user?.name ?? ''} userRole={actualRole} pharmacyName={user?.pharmacy?.name ?? ''} />
             <main className="flex-1 overflow-y-auto p-4 bg-zinc-50">
               {children}
             </main>
