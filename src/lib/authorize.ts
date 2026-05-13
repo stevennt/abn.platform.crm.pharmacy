@@ -1,4 +1,4 @@
-import { getCurrentUser } from './auth'
+import { getCurrentUser, getEffectiveRole } from './auth'
 import { NextResponse } from 'next/server'
 import { prisma } from './prisma'
 
@@ -38,9 +38,10 @@ export async function authorize(permission: string) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const effectiveRole = await getEffectiveRole()
   const rolePermissions = await getPermissionMap()
   const allowedRoles = rolePermissions[permission] || rolePermissions['*']
-  if (!allowedRoles?.includes(user.role as Role)) {
+  if (!allowedRoles?.includes(effectiveRole as Role)) {
     return NextResponse.json({ error: 'Forbidden: insufficient permissions' }, { status: 403 })
   }
 

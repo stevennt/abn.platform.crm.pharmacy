@@ -1,15 +1,14 @@
 import { prisma } from '@/lib/prisma'
-import { getCurrentUser } from '@/lib/auth'
+import { getEffectiveRole } from '@/lib/auth'
 import DashboardClient from './DashboardClient'
 import CEODashboardClient from './CEODashboardClient'
 
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
-  const user = await getCurrentUser()
-  const isCEO = user?.role === 'ceo'
+  const effectiveRole = await getEffectiveRole()
 
-  if (isCEO) {
+  if (effectiveRole === 'ceo') {
     return <CEODashboardClient />
   }
 

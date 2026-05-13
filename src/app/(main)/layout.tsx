@@ -1,22 +1,24 @@
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
-import { getCurrentUser } from '@/lib/auth'
+import { getCurrentUser, getEffectiveRole, getSwitchedRole } from '@/lib/auth'
 import { getPermissionsForRole } from '@/lib/authorize'
 import { PermissionProvider } from '@/hooks/PermissionContext'
 import { LookupProvider } from '@/hooks/useLookups'
 
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser()
-  const role = user?.role ?? 'admin'
-  const permissions = await getPermissionsForRole(role)
+  const actualRole = user?.role ?? 'admin'
+  const effectiveRole = await getEffectiveRole()
+  const switchedRole = await getSwitchedRole()
+  const permissions = await getPermissionsForRole(effectiveRole)
 
   return (
-    <PermissionProvider role={role} permissions={permissions}>
+    <PermissionProvider role={effectiveRole} permissions={permissions}>
       <LookupProvider>
         <div className="flex h-screen">
-          <Sidebar role={role} permissions={permissions} />
+          <Sidebar role={effectiveRole} permissions={permissions} />
           <div className="flex-1 flex flex-col overflow-hidden">
-            <Header />
+            <Header actualRole={actualRole} switchedRole={switchedRole} userName={user?.name ?? ''} userRole={actualRole} />
             <main className="flex-1 overflow-y-auto p-4 bg-zinc-50">
               {children}
             </main>
