@@ -15,6 +15,7 @@ export async function GET(
       include: {
         stockBatches: true,
         priceLists: true,
+        masterProduct: { select: { id: true, code: true, name: true, activeIngredient: true, category: true, manufacturer: true, unit: true } },
       },
     })
     if (!product) {

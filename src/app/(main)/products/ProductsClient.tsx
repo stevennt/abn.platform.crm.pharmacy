@@ -18,6 +18,7 @@ interface Product {
   minStock: number
   stock: number
   status: string
+  masterProduct?: { id: number; code: string; name: string } | null
 }
 
 function formatVND(amount: number) {
@@ -48,6 +49,8 @@ export default function ProductsClient() {
   const [formStatus, setFormStatus] = useState('active')
   const [editingItem, setEditingItem] = useState<Product | null>(null)
   const [saving, setSaving] = useState(false)
+  const [masterProducts, setMasterProducts] = useState<{ id: number; code: string; name: string }[]>([])
+  const [formMasterProductId, setFormMasterProductId] = useState('')
 
   useEffect(() => {
     fetch('/api/products')
@@ -62,7 +65,27 @@ export default function ProductsClient() {
           needPriceUpdate: list.filter(p => p.sellingPrice === 0).length,
         })
       })
+    fetch('/api/master-products?limit=200')
+      .then(r => r.json())
+      .then(res => setMasterProducts(res.data || []))
+      .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!formMasterProductId || editingItem) return
+    fetch(`/api/master-products/${formMasterProductId}`)
+      .then(r => r.json())
+      .then(mp => {
+        if (mp && mp.name) {
+          setFormName(mp.name)
+          setFormActiveIngredient(mp.activeIngredient || '')
+          setFormCategory(mp.category || 'prescription')
+          setFormManufacturer(mp.manufacturer || '')
+          setFormUnit(mp.unit || '')
+        }
+      })
+      .catch(() => {})
+  }, [formMasterProductId])
 
   const filtered = data.filter(item => {
     const q = search.toLowerCase()
@@ -90,6 +113,7 @@ export default function ProductsClient() {
     setFormPurchasePrice('')
     setFormMinStock('')
     setFormStatus('active')
+    setFormMasterProductId('')
     setShowModal(true)
   }
 
@@ -105,6 +129,7 @@ export default function ProductsClient() {
     setFormPurchasePrice(String(item.purchasePrice))
     setFormMinStock(String(item.minStock))
     setFormStatus(item.status)
+    setFormMasterProductId(item.masterProduct ? String(item.masterProduct.id) : '')
     setShowModal(true)
   }
 
@@ -128,6 +153,7 @@ export default function ProductsClient() {
         body: JSON.stringify({
           code: formCode,
           name: formName,
+          masterProductId: formMasterProductId ? parseInt(formMasterProductId) : null,
           activeIngredient: formActiveIngredient,
           category: formCategory,
           manufacturer: formManufacturer,
@@ -219,6 +245,7 @@ export default function ProductsClient() {
               <th className="text-left px-4 py-3 text-zinc-700 font-medium">Danh mục</th>
               <th className="text-left px-4 py-3 text-zinc-700 font-medium">Nhà SX</th>
               <th className="text-left px-4 py-3 text-zinc-700 font-medium">Đơn vị</th>
+              <th className="text-left px-4 py-3 text-zinc-700 font-medium">Nguồn</th>
               <th className="text-right px-4 py-3 text-zinc-700 font-medium">Giá bán</th>
               <th className="text-right px-4 py-3 text-zinc-700 font-medium">Tồn kho</th>
               <th className="text-left px-4 py-3 text-zinc-700 font-medium">Trạng thái</th>
@@ -234,6 +261,13 @@ export default function ProductsClient() {
                 <td className="px-4 py-3 text-zinc-600">{loading ? '...' : getLabel('product_category', item.category)}</td>
                 <td className="px-4 py-3 text-zinc-600">{item.manufacturer}</td>
                 <td className="px-4 py-3 text-zinc-600">{item.unit}</td>
+                <td className="px-4 py-3">
+                  {item.masterProduct ? (
+                    <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5">Danh mục chung</span>
+                  ) : (
+                    <span className="text-[10px] bg-zinc-100 text-zinc-500 px-1.5 py-0.5">Riêng</span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-zinc-900 text-right">{formatVND(item.sellingPrice)}</td>
                 <td className="px-4 py-3 text-zinc-900 text-right">{item.stock}</td>
                 <td className="px-4 py-3">
@@ -255,7 +289,7 @@ export default function ProductsClient() {
               </tr>
             ))}
             {paged.length === 0 && (
-              <tr><td colSpan={10} className="px-4 py-8 text-center text-zinc-400">Không có dữ liệu</td></tr>
+              <tr><td colSpan={11} className="px-4 py-8 text-center text-zinc-400">Không có dữ liệu</td></tr>
             )}
           </tbody>
         </table>
@@ -282,10 +316,17 @@ export default function ProductsClient() {
               <button className="text-zinc-400 hover:text-zinc-900 text-lg" onClick={() => setShowModal(false)}>×</button>
             </div>
             <div className="p-4 space-y-3">
+              <div>
+                <label className="text-xs text-zinc-500 mb-1 block">Danh mục chung</label>
+                <select className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" value={formMasterProductId} onChange={e => setFormMasterProductId(e.target.value)}>
+                  <option value="">— Không —</option>
+                  {masterProducts.map(mp => <option key={mp.id} value={mp.id}>{mp.code} - {mp.name}</option>)}
+                </select>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-zinc-500 mb-1 block">Mã SP</label>
-                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Tự động" value={formCode} onChange={e => setFormCode(e.target.value)} />
+                  <label className="text-xs text-zinc-500 mb-1 block">Mã SP (SKU)</label>
+                  <input className="w-full px-3 py-2 border border-zinc-300 text-sm focus:outline-none" placeholder="Mã" value={formCode} onChange={e => setFormCode(e.target.value)} />
                 </div>
                 <div>
                   <label className="text-xs text-zinc-500 mb-1 block">Tên sản phẩm</label>

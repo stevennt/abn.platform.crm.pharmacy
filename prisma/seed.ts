@@ -21,6 +21,7 @@ async function main() {
   await prisma.salesOrder.deleteMany()
   await prisma.stockBatch.deleteMany()
   await prisma.product.deleteMany()
+  await prisma.masterProduct.deleteMany()
   await prisma.distributor.deleteMany()
   await prisma.territory.deleteMany()
   await prisma.customer.deleteMany()
@@ -38,10 +39,13 @@ async function main() {
   })
   console.log(`Created pharmacies: ${pharmA.name}, ${pharmB.name}`)
 
+  // ── Master products (global catalog) ────────────────────
+  const masterProductMap = await seedMasterProducts()
+
   // ── Pharmacy A: ABN Pharma ──────────────────────────────
-  await seedPharmacy(pharmA.id, 'ABN', hashedPassword)
+  await seedPharmacy(pharmA.id, 'ABN', hashedPassword, masterProductMap)
   // ── Pharmacy B: Mekong Pharma ──────────────────────────
-  await seedPharmacy(pharmB.id, 'MKP', hashedPassword)
+  await seedPharmacy(pharmB.id, 'MKP', hashedPassword, masterProductMap)
 
   // ── Global data (shared across all pharmacies) ──────────
   await seedLookups()
@@ -51,7 +55,7 @@ async function main() {
   console.log('\n✅ Seed completed successfully')
 }
 
-async function seedPharmacy(pharmacyId: number, prefix: string, hashedPassword: string) {
+async function seedPharmacy(pharmacyId: number, prefix: string, hashedPassword: string, masterProductMap: Record<string, number> = {}) {
   console.log(`\n--- Seeding pharmacy ${prefix} (id=${pharmacyId}) ---`)
 
   // ── Users ──────────────────────────────────────────
@@ -103,7 +107,12 @@ async function seedPharmacy(pharmacyId: number, prefix: string, hashedPassword: 
     productDefs.map(p => prisma.product.upsert({
       where: { pharmacyId_code: { pharmacyId, code: p.code } },
       update: {},
-      create: { ...p, pharmacyId, status: 'active' },
+      create: {
+        ...p,
+        pharmacyId,
+        masterProductId: masterProductMap[p.name] || null,
+        status: 'active',
+      },
     }))
   )
 
@@ -242,6 +251,28 @@ async function seedPharmacy(pharmacyId: number, prefix: string, hashedPassword: 
   console.log(`  ✓ 3 distributors, territories, KPIs, promotions, tax settings, compliance, settings`)
 }
 
+async function seedMasterProducts(): Promise<Record<string, number>> {
+  console.log('\n--- Seeding master product catalog ---')
+  const defs = [
+    { code: 'MP-SP001', name: 'Paracetamol 500mg', activeIngredient: 'Paracetamol', category: 'otc', manufacturer: 'Công ty Dược phẩm ABC', unit: 'Viên' },
+    { code: 'MP-SP002', name: 'Amoxicillin 250mg', activeIngredient: 'Amoxicillin', category: 'prescription', manufacturer: 'Công ty Dược phẩm XYZ', unit: 'Viên' },
+    { code: 'MP-SP003', name: 'Insulin Glargine 100IU/ml', activeIngredient: 'Insulin Glargine', category: 'prescription', manufacturer: 'Pharma International', unit: 'Lọ' },
+    { code: 'MP-SP004', name: 'Vitamin C 1000mg', activeIngredient: 'Ascorbic Acid', category: 'supplement', manufacturer: 'Công ty Dược phẩm ABC', unit: 'Viên' },
+    { code: 'MP-SP005', name: 'Khẩu trang y tế N95', activeIngredient: '', category: 'medical-device', manufacturer: 'Công ty TNHH Y tế', unit: 'Cái' },
+  ]
+  const map: Record<string, number> = {}
+  for (const d of defs) {
+    const mp = await prisma.masterProduct.upsert({
+      where: { code: d.code },
+      update: {},
+      create: d,
+    })
+    map[mp.name] = mp.id
+  }
+  console.log(`  ✓ ${defs.length} master products`)
+  return map
+}
+
 async function seedLookups() {
   const lookupData: { category: string; value: string; label: string; color?: string; sortOrder: number }[] = [
     { category: 'customer_type', value: 'pharmacy', label: 'Nhà thuốc', sortOrder: 1 },
@@ -357,17 +388,18 @@ async function seedNavigation() {
     { href: '/dashboard', label: 'Dashboard', icon: '📊', permission: 'dashboard:read', sortOrder: 1 },
     { href: '/customers', label: 'Quản Lý Khách Hàng', icon: '👥', permission: 'customers:read', sortOrder: 2 },
     { href: '/products', label: 'Danh Mục Thuốc', icon: '💊', permission: 'products:read', sortOrder: 3 },
-    { href: '/inventory', label: 'Quản Lý Kho', icon: '🏭', permission: 'inventory:read', sortOrder: 4 },
-    { href: '/sales-orders', label: 'Đơn Hàng Bán', icon: '🛒', permission: 'sales-orders:read', sortOrder: 5 },
-    { href: '/purchase-orders', label: 'Đơn Hàng Mua', icon: '📄', permission: 'purchase-orders:read', sortOrder: 6 },
-    { href: '/distribution', label: 'Phân Phối - Đại Lý', icon: '🚚', permission: 'distribution:read', sortOrder: 7 },
-    { href: '/sales-team', label: 'Đội Ngũ Sales', icon: '👔', permission: 'sales-team:read', sortOrder: 8 },
-    { href: '/promotions', label: 'Chương Trình KM', icon: '🏷️', permission: 'promotions:read', sortOrder: 9 },
-    { href: '/pricing', label: 'Quản Lý Giá', icon: '💰', permission: 'pricing:read', sortOrder: 10 },
-    { href: '/compliance', label: 'Tuân Thủ Quy Định', icon: '🛡️', permission: 'compliance:read', sortOrder: 11 },
-    { href: '/reports', label: 'Báo Cáo & Phân Tích', icon: '📈', permission: 'reports:read', sortOrder: 12 },
-    { href: '/tax', label: 'Quản Lý Thuế', icon: '🧮', permission: 'tax:read', sortOrder: 13 },
-    { href: '/settings', label: 'Cài Đặt Hệ Thống', icon: '⚙️', permission: 'settings:read', sortOrder: 14 },
+    { href: '/master-products', label: 'Danh Mục Chung', icon: '📋', permission: 'products:read', sortOrder: 4 },
+    { href: '/inventory', label: 'Quản Lý Kho', icon: '🏭', permission: 'inventory:read', sortOrder: 5 },
+    { href: '/sales-orders', label: 'Đơn Hàng Bán', icon: '🛒', permission: 'sales-orders:read', sortOrder: 6 },
+    { href: '/purchase-orders', label: 'Đơn Hàng Mua', icon: '📄', permission: 'purchase-orders:read', sortOrder: 7 },
+    { href: '/distribution', label: 'Phân Phối - Đại Lý', icon: '🚚', permission: 'distribution:read', sortOrder: 8 },
+    { href: '/sales-team', label: 'Đội Ngũ Sales', icon: '👔', permission: 'sales-team:read', sortOrder: 9 },
+    { href: '/promotions', label: 'Chương Trình KM', icon: '🏷️', permission: 'promotions:read', sortOrder: 10 },
+    { href: '/pricing', label: 'Quản Lý Giá', icon: '💰', permission: 'pricing:read', sortOrder: 11 },
+    { href: '/compliance', label: 'Tuân Thủ Quy Định', icon: '🛡️', permission: 'compliance:read', sortOrder: 12 },
+    { href: '/reports', label: 'Báo Cáo & Phân Tích', icon: '📈', permission: 'reports:read', sortOrder: 13 },
+    { href: '/tax', label: 'Quản Lý Thuế', icon: '🧮', permission: 'tax:read', sortOrder: 14 },
+    { href: '/settings', label: 'Cài Đặt Hệ Thống', icon: '⚙️', permission: 'settings:read', sortOrder: 15 },
   ]
   for (const nav of navItemData) {
     await prisma.navigationItem.upsert({
